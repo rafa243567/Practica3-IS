@@ -11,9 +11,9 @@
 
 // Estructura para almacenar la información de un usuario
 struct User {
-    std::string name;
+    std::string nombre;
     std::string passwordHash;
-    std::string role;
+    std::string rol;
 };
 
 class AuthService {
@@ -25,10 +25,10 @@ private:
     const std::string ROL_TUTELADO = "tutelado"; 
     
     // Función de validación del REQUISITO F1: Solo alumnos de primer ingreso
-    bool isFirstYear(const std::string& matricula);
+    bool isFirstYear(const std::string& Matricula);
     
     // Simulación de hashing de contraseña (Conceptual)
-    std::string hashPassword(const std::string& password);
+    std::string hashPassword(const std::string& Contraseña);
 
 public:
     // Constructor
@@ -36,16 +36,16 @@ public:
 
     // F1: Función principal de registro
     std::pair<bool, std::string> registerUser(
-        const std::string& fullName,
-        const std::string& matricula,
-        const std::string& password,
-        const std::string& role
+        const std::string& NombreCompleto,
+        const std::string& Matricula,
+        const std::string& Contraseña,
+        const std::string& Rol
     );
 
     // F1: Función principal de inicio de sesión
     std::pair<bool, std::string> loginUser(
-        const std::string& matricula,
-        const std::string& password
+        const std::string& Matricula,
+        const std::string& Contraseña
     );
 };
 
