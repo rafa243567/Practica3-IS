@@ -34,5 +34,7 @@ int main() {
     result = authService.loginUser("I2025001", "passERRONEA");
     printf("5. Login Fallido: %s\n", result.second.c_str());
 
+    printf("\n--- PRUEBA COMPLETADA ---\n");
+
     return 0;
 }
