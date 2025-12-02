@@ -20,6 +20,14 @@ void iniciarSesion();
 // Función principal para registrar un nuevo usuario, pide credenciales y guarda.
 void registrarse();
 
+
+// Menus dependiendo del tipo de usuario
+
+void menuEstudiante(const Usuario& usuario);
+void menuTutor(const Usuario& usuario);
+void menuAdministrador(const Usuario& usuario);
+
+
 // --- Función Auxiliar ---
 
 // Busca un usuario con las credenciales dadas en el vector de usuarios.

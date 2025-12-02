@@ -5,7 +5,7 @@
 using namespace std;
 
 // Función auxiliar para limpiar el buffer de entrada en caso de error
-void manejarErrorEntrada() {
+void ErrorEntrada() {
     cout << "❌ Entrada inválida. Por favor, ingresa un número.\n";
     cin.clear();
     // Ignora el resto de la línea en el buffer
@@ -22,7 +22,7 @@ int main() {
 
         // Captura la opción y maneja la entrada no numérica
         if (!(cin >> opcion)) {
-            manejarErrorEntrada();
+            ErrorEntrada();
             continue; // Vuelve al inicio del bucle
         }
 
