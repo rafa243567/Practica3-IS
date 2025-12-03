@@ -13,6 +13,9 @@ void ErrorEntrada() {
 }
 
 int main() {
+
+    inicializarDatosPrueba();
+    
     bool ejecutando = true;
     int opcion;
 

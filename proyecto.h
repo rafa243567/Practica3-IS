@@ -7,7 +7,13 @@
 struct Usuario {
     std::string usuario;
     std::string contrasena;
+    std::string rol; // "estudiante", "tutor", "administrador"
 };
+
+
+// --- Funciones de Gestión de Datos ---
+void inicializarDatosPrueba(); // <--- NUEVA: Carga los usuarios falsos
+
 
 // --- Declaración de Funciones del Menú ---
 
@@ -31,7 +37,7 @@ void menuAdministrador(const Usuario& usuario);
 // --- Función Auxiliar ---
 
 // Busca un usuario con las credenciales dadas en el vector de usuarios.
-// Retorna true si las credenciales son correctas.
-bool buscarUsuario(const std::string& usuario, const std::string& contrasena);
+// Retorna un puntero al usuario si las credenciales son correctas, o nullptr si no.
+Usuario* buscarUsuario(const std::string& usuario, const std::string& contrasena);
 
 #endif // PROYECTO_H
