@@ -45,6 +45,9 @@ void limpiarPantalla() {
 
 
 
+
+
+
 // --- 1. SIMULACIÓN DE BASE DE DATOS ---
 void inicializarDatosPrueba() {
     // Estos datos simulan lo que ya existiría en tu base de datos SQL
@@ -81,11 +84,12 @@ void menuEstudiante(const Usuario& usuario) {
     int opcion;
 
     while (en_menu) {
-        limpiarPantalla(); // <--- 1. Limpia lo anterior
+        limpiarPantalla(); // <--- 1. Limpia lo anterior, para que quede mas ordenado y estético
         cout << "\n============================================\n";
-        cout << "  🎓 MENÚ PRINCIPAL DEL ESTUDIANTE: " << usuario.usuario << "\n";
+        cout << "  MENÚ PRINCIPAL DEL ESTUDIANTE: " << usuario.usuario << "\n";
         cout << "============================================\n";
         cout << "1. Consultar Tutor\n";
+        cout << "2. Reportar un error (en proceso de creación) \n";
         cout << "2. Cerrar Sesión\n";
         cout << "============================================\n";
         cout << "Selecciona una opción: ";
@@ -100,11 +104,12 @@ void menuEstudiante(const Usuario& usuario) {
                 cout << "\n🔎 Buscando tutor asignado...\n";
                 // Pausa para que el usuario pueda leer antes de que se limpie la pantalla de nuevo
                 cout << "Presiona Enter para continuar...";
-                cin.ignore(); cin.get(); 
+                cin.ignore();
+                cin.get(); 
                 break;
             case 2:
                 cout << "\n Cerrando sesión...\n";
-                en_menu = false; // <--- Esto rompe el bucle y vuelve a iniciarSesion
+                en_menu = false; // <--- Esto rompe el bucle y vuelve al menú de iniciarSesion
                 break;
             default:
                 break;
@@ -116,24 +121,25 @@ void menuTutor(const Usuario& usuario) {
     bool en_menu = true;
     int opcion;
 
-    while (en_menu) { // <--- IMPORTANTE: El bucle mantiene al usuario aquí
+    while (en_menu) {
         limpiarPantalla();
         cout << "\n============================================\n";
-        cout << "  🍎 MENÚ PRINCIPAL DEL TUTOR: " << usuario.usuario << "\n";
+        cout << "   MENÚ PRINCIPAL DEL TUTOR: " << usuario.usuario << "\n";
         cout << "============================================\n";
         cout << "1. Ver mis alumnos\n";
+        cout << "2. Reportar un error (en proceso de creación) \n";
         cout << "2. Cerrar Sesión\n";
         cout << "============================================\n";
         cout << "Selecciona una opción: ";
 
-        if (!(cin >> opcion)) {
+        if (!(cin >> opcion)) { // Se encarga de que la entrada sea válida, es decir que no introduzca un valor no valido
             limpiarBuffer();
             continue;
         }
 
         switch (opcion) {
             case 1:
-                cout << "\n📄 Listando alumnos...\n";
+                cout << "\n Listando alumnos...\n";
                 cout << "Presiona Enter para continuar...";
                 cin.ignore(); cin.get();
                 break;
@@ -148,17 +154,18 @@ void menuAdministrador(const Usuario& usuario) {
     bool en_menu = true;
     int opcion;
 
-    while (en_menu) { // <--- IMPORTANTE: El bucle mantiene al usuario aquí
+    while (en_menu) { 
         limpiarPantalla();
         cout << "\n============================================\n";
         cout << "  ⚙️ MENÚ DEL ADMINISTRADOR: " << usuario.usuario << "\n";
         cout << "============================================\n";
         cout << "1. Gestionar Usuarios\n";
+        cout << "2. Ver reporte de errores (en proceso de creación) \n";
         cout << "2. Cerrar Sesión\n";
         cout << "============================================\n";
         cout << "Selecciona una opción: ";
 
-        if (!(cin >> opcion)) {
+        if (!(cin >> opcion)) { // En caso de que la entrada no sea válida
             limpiarBuffer();
             continue;
         }
@@ -181,7 +188,7 @@ void menuAdministrador(const Usuario& usuario) {
 
 void iniciarSesion() {
     cout << "\n============================================\n";
-    cout << "  ➡️ PANTALLA DE INICIO DE SESIÓN\n";
+    cout << "  PANTALLA DE INICIO DE SESIÓN\n";
     
     string user_input, pass_input;
     cout << "  Usuario: "; cin >> user_input;
@@ -204,11 +211,11 @@ void iniciarSesion() {
             menuAdministrador(*usuarioLogueado);
         } 
         else {
-            cout << "  ⚠️ Error: Tu usuario no tiene un rol válido asignado.\n";
+            cout << "  No tienes permitido el acceso a esta sección.\n";
         }
 
     } else {
-        cout << "\n  ❌ ERROR: Usuario o contraseña incorrectos.\n";
+        cout << "\n  ERROR: Usuario o contraseña incorrectos.\n";
     }
     cout << "============================================\n";
 }
@@ -234,10 +241,9 @@ void registrarse() {
     
     // LÓGICA IMPORTANTE:
     // Como es un registro público, asumimos que es ALUMNO.
-    // Los Admins y Tutores se crearían manualmente en la Base de Datos.
+    // Los Admins y Tutores no se pueden registrar manualmente, sino que se deben encontrar añadidos en la Base de Datos.
     Usuario nuevo_usuario = {user_input, pass_input, "alumno"};
-    
     usuarios.push_back(nuevo_usuario);
-    
-    cout << "\n  ¡Cuenta creada! Ahora eres un 'alumno'.\n";
+
+    cout << "\n  ¡Registro exitoso!.\n";
 }

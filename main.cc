@@ -4,7 +4,7 @@
 
 using namespace std;
 
-// Función auxiliar para limpiar el buffer de entrada en caso de error
+// Función auxiliar para limpiar el buffer de entrada en caso de error debido a la introducción de datos erroneos
 void ErrorEntrada() {
     cout << "❌ Entrada inválida. Por favor, ingresa un número.\n";
     cin.clear();
