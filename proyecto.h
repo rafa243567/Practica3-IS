@@ -2,42 +2,29 @@
 #define PROYECTO_H
 
 #include <string>
+#include <sqlite3.h> // Necesario para la integración
 
-// Estructura para almacenar los datos de un usuario
+// Estructura para almacenar los datos de un usuario temporalmente en memoria
 struct Usuario {
     std::string usuario;
     std::string contrasena;
-    std::string rol; // "estudiante", "tutor", "administrador"
+    std::string rol; // "alumno", "tutor", "admin"
 };
 
-
 // --- Funciones de Gestión de Datos ---
-void inicializarDatosPrueba(); // <--- NUEVA: Carga los usuarios falsos
-
+void inicializarDatosPrueba(); // Ahora solo conecta a la DB
 
 // --- Declaración de Funciones del Menú ---
-
-// Muestra las opciones del menú principal.
 void mostrarMenu();
-
-// Función principal para iniciar sesión, pide credenciales y verifica.
 void iniciarSesion();
-
-// Función principal para registrar un nuevo usuario, pide credenciales y guarda.
 void registrarse();
 
-
-// Menus dependiendo del tipo de usuario
-
+// Menús por rol
 void menuEstudiante(const Usuario& usuario);
 void menuTutor(const Usuario& usuario);
 void menuAdministrador(const Usuario& usuario);
 
-
 // --- Función Auxiliar ---
-
-// Busca un usuario con las credenciales dadas en el vector de usuarios.
-// Retorna un puntero al usuario si las credenciales son correctas, o nullptr si no.
 Usuario* buscarUsuario(const std::string& usuario, const std::string& contrasena);
 
 #endif // PROYECTO_H
