@@ -13,6 +13,7 @@ void ErrorEntrada() {
 }
 
 int main() {
+    sqlite3* db;
 
     inicializarDatosPrueba();
     
@@ -46,5 +47,11 @@ int main() {
         }
     }
 
+
+inicializarDatosPrueba();
+
+iniciarSesion();
+
     return 0;
+
 }

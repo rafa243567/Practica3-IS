@@ -236,3 +236,84 @@ void iniciarSesion() {
         cin.ignore(); cin.get();
     }
 }
+
+
+int MostrarDatos (void *NotUsed, int argc, char **argv, char **azColName){
+    
+    cout << "Guardado a : " << (argv[4] ? argv[4] : "?") << " | ";
+    cout << "Tutor: " << (argv[2] ? argv[2] : "SinNombre") << " (ID " << (argv[0] ? argv[0] : "?") << ") ";
+    cout << "--> Alumno: " << (argv[3] ? argv[3] : "SinNombre") << " (ID " << (argv[1] ? argv[1] : "?") << ")" << endl;
+
+    return 0; 
+}
+
+void iniciarBaseDeDatos(sqlite3 *db) {
+    char *error = 0; 
+    string sql = "CREATE TABLE IF NOT EXISTS asignaciones ("
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                 "id_tutor INTEGER, "
+                 "nombre_tutor TEXT, "   
+                 "id_alumno INTEGER, "
+                 "nombre_alumno TEXT, " 
+                 "fecha TEXT DEFAULT CURRENT_TIMESTAMP);";
+
+    int resultado = sqlite3_exec(db, sql.c_str(), 0, 0, &error);
+    
+    if (resultado != 0) {
+        cout << "Error al crear la tabla: " << error << endl;
+    }
+} 
+
+// función para introducir los datos y la asignación de tutor y alumno 
+void RealizarAsignacion(sqlite3 *db) {
+    int id_tutor, id_alumno;
+    string nom_tutor, nom_alumno;
+    char *error = 0;
+
+    cout << "--- REALIZAR ASIGNACIÓN DE TUTOR ---"<< endl;
+
+    //Datos tutor 
+    cout << "Ingrese el ID del tutor: ";
+    cin >> id_tutor;
+    cin.ignore();
+    cout << "Ingrese el nombre del tutor: ";
+    getline(cin, nom_tutor);
+
+    //Datos alumno
+    cout << "Ingrese el ID del alumno: ";
+    cin >> id_alumno;
+    cin.ignore();
+    cout << "Ingrese el nombre del alumno: ";
+  getline(cin, nom_alumno);
+
+    string sql = "INSERT INTO asignaciones (id_tutor, id_alumno, nombre_tutor, nombre_alumno) VALUES (" 
+                 + to_string(id_tutor) + ", " 
+                 + to_string(id_alumno) + ", '" 
+                 + nom_tutor + "', '" 
+                 + nom_alumno + "');";
+
+    cout << "Guardando los datos en el sistema... " << endl;
+    int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &error);
+    
+    if (rc != SQLITE_OK) {
+        cout << " Error al asignar: " << error << endl;
+        sqlite3_free(error);
+    } else {
+        cout << "Asignación de tutor completa correctamente." << endl;
+    }
+}
+
+void VerAsignaciones(sqlite3 *db) {
+    char *error = 0;
+
+    cout << "--- LISTA DE ASIGNACIONES DE TUTORES ---" << endl;
+    string sql = "SELECT id_tutor, id_alumno, nombre_tutor, nombre_alumno, fecha FROM asignaciones;";
+    int rc = sqlite3_exec(db, sql.c_str(), MostrarDatos, 0, &error);
+    
+    if (rc != SQLITE_OK) {
+        cout << " Error al leer la lista: " << error << endl;
+        sqlite3_free(error);
+    }
+    cout << "---------------------------------------" << endl;
+}
+
