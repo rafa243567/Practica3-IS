@@ -1,18 +1,11 @@
 #include "proyecto.h"
-#include <iostream>
-#include <string>
 #include <limits>
-#include <sqlite3.h> // Librería de base de datos
 
-using namespace std;
-
-// --- Variables Globales de SQLite ---
+// Variables globales de SQLite
 static sqlite3* db;
-static const char* DB_FILE = "tutoria_app.db"; // El archivo debe estar junto al ejecutable
-static const char* USERS_TABLE = "usuarios";
+static const char* DB_FILE = "tutoria_app.db";
 
-// --- Funciones Auxiliares de Interfaz ---
-
+// --- Funciones Auxiliares de Limpieza ---
 void limpiarBuffer() {
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -26,198 +19,201 @@ void limpiarPantalla() {
     #endif
 }
 
-// Callback requerido por sqlite3_exec (aunque no lo usemos para leer datos aquí)
-static int callback(void* NotUsed, int argc, char** argv, char** azColName) {
-    return 0;
+// ==========================================
+// IMPLEMENTACIÓN DE LOS MENÚS
+// ==========================================
+
+// --- ALUMNO ---
+void Alumno::mostrarMenu() {
+    int opcion;
+    do {
+        limpiarPantalla();
+        cout << "\n=== PANEL DE ESTUDIANTE: " << usuario << " ===\n";
+        cout << "1. Abrir Chat con Tutor\n";
+        cout << "2. Generar Alerta de Incidencia\n";
+        cout << "3. Cerrar Sesión\n";
+        cout << "Opción: ";
+        cin >> opcion;
+
+        if (opcion == 1) {
+            chatPersonal.cargarHistorial(); // Usamos el objeto Chat
+            cout << "\nPresiona Enter para volver.";
+            limpiarBuffer(); cin.get();
+        } 
+        else if (opcion == 2) {
+            generarAlerta();
+            limpiarBuffer(); cin.get();
+        }
+
+    } while(opcion != 3);
 }
 
-// --- 1. GESTIÓN DE BASE DE DATOS ---
+void Alumno::generarAlerta() {
+    cout << "\n>> Enviando notificación urgente al Coordinador...\n";
+    cout << ">> Incidencia registrada con éxito.\n";
+}
+
+// --- TUTOR ---
+void Tutor::mostrarMenu() {
+    int opcion;
+    do {
+        limpiarPantalla();
+        cout << "\n=== PANEL DE TUTOR: " << usuario << " (" << departamento << ") ===\n";
+        cout << "1. Ver Ficha de Alumnos Asignados\n";
+        cout << "2. Registrar Acta de Sesión\n";
+        cout << "3. Cerrar Sesión\n";
+        cout << "Opción: ";
+        cin >> opcion;
+
+        if (opcion == 1) {
+            verFichaAlumno();
+            limpiarBuffer(); cin.get();
+        } 
+        else if (opcion == 2) {
+            registrarActa();
+            limpiarBuffer(); cin.get();
+        }
+    } while(opcion != 3);
+}
+
+void Tutor::verFichaAlumno() {
+    cout << "\n--- Consultando Base de Datos Académica ---\n";
+    // Simulamos la creación de una ficha (objeto temporal)
+    FichaAcademica ficha;
+    ficha.datosAcademicos = "Juan Pérez (1º Curso)";
+    ficha.asignaturas = "Matemáticas, Programación, Física";
+    ficha.mostrarFicha();
+}
+
+void Tutor::registrarActa() {
+    string tema;
+    cout << "\nTema tratado en la sesión: ";
+    cin >> tema;
+    cout << ">> Acta guardada correctamente en el historial del alumno.\n";
+}
+
+// --- Lógica del COORDINADOR (ADMIN) ---
+void Coordinador::mostrarMenu() {
+    int opcion;
+    do {
+        limpiarPantalla();
+        cout << "\n=== PANEL DE COORDINADOR ===\n";
+        cout << "1. Gestionar Asignaciones (Tutor-Alumno)\n";
+        cout << "2. Cerrar Sesión\n";
+        cout << "Opción: ";
+        cin >> opcion;
+
+        if (opcion == 1) {
+            gestionarAsignaciones();
+            limpiarBuffer(); cin.get();
+        }
+
+    } while(opcion != 2);
+}
+
+void Coordinador::gestionarAsignaciones() {
+    cout << "\n>> Accediendo al sistema de asignación manual...\n";
+    cout << ">> [INFO] Se ha asignado el Tutor 'Miguel' al Alumno 'Juan'.\n";
+}
+
+// ==========================================
+// GESTIÓN DE BASE DE DATOS Y LOGIN
+// ==========================================
 
 void inicializarDatosPrueba() {
-    // 1. Abrir conexión
     int rc = sqlite3_open(DB_FILE, &db);
-
     if (rc) {
-        cerr << "❌ Error fatal: No se pudo abrir la base de datos external (" << DB_FILE << "): " << sqlite3_errmsg(db) << endl;
-        exit(1);
-    } else {
-        cout << "  [SISTEMA] Conexión establecida con la base de datos.\n";
-    }
-
-    // 2. Asegurar que la tabla existe (Por seguridad, aunque la crees externamente)
-    string sql_create = "CREATE TABLE IF NOT EXISTS " + string(USERS_TABLE) + " ("
-                        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        "usuario TEXT NOT NULL UNIQUE,"
-                        "contrasena TEXT NOT NULL,"
-                        "rol TEXT NOT NULL);";
-    
-    char* zErrMsg = 0;
-    rc = sqlite3_exec(db, sql_create.c_str(), callback, 0, &zErrMsg);
-
-    if (rc != SQLITE_OK) {
-        cerr << "❌ Error SQL: " << zErrMsg << endl;
-        sqlite3_free(zErrMsg);
+        cerr << "Error al abrir DB: " << sqlite3_errmsg(db) << endl;
+        return;
     }
     
-    // NOTA: Ya no insertamos datos de prueba automáticamente.
+    // Crear tabla si no existe
+    string sql = "CREATE TABLE IF NOT EXISTS usuarios ("
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                 "usuario TEXT UNIQUE, pass TEXT, rol TEXT);";
+    char* err;
+    sqlite3_exec(db, sql.c_str(), 0, 0, &err);
 }
 
-// --- 2. BUSCAR USUARIO (SELECT) --- para comprobar que esta en la base de datos
+// ESTA ES LA FUNCIÓN CLAVE (FACTORY)
+Usuario* iniciarSesion() {
+    string u, p;
+    cout << "\n================================\n";
+    cout << "      INICIO DE SESIÓN\n";
+    cout << "================================\n";
+    cout << "Usuario: "; cin >> u;
+    cout << "Contraseña: "; cin >> p;
 
-Usuario* buscarUsuario(const string& user, const string& pass) {
-    static Usuario encontrado; // Estático para devolver puntero válido
-
-    string sql = "SELECT contrasena, rol FROM " + string(USERS_TABLE) + " WHERE usuario = ?;";
+    string sql = "SELECT rol FROM usuarios WHERE usuario = ? AND pass = ?;";
     sqlite3_stmt* stmt;
-
-    // Preparar la consulta
+    
     if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) != SQLITE_OK) {
-        cerr << "❌ Error al consultar DB: " << sqlite3_errmsg(db) << endl;
+        cerr << "Error DB.\n";
         return nullptr;
     }
 
-    // Vincular el parámetro (el usuario que escribe la persona)
-    sqlite3_bind_text(stmt, 1, user.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 1, u.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, p.c_str(), -1, SQLITE_STATIC);
 
-    // Ejecutar paso a paso
+    Usuario* usuarioLogueado = nullptr;
+
     if (sqlite3_step(stmt) == SQLITE_ROW) {
-        // Usuario existe, verificamos contraseña
-        string db_pass = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        string db_rol  = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        string rolDB = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        
+        cout << "\n✅ Login correcto. Rol detectado: " << rolDB << endl;
+        // Pausa breve para efecto visual
+        for(int i=0; i<300000000; i++); 
 
-        if (db_pass == pass) {
-            encontrado.usuario = user;
-            encontrado.contrasena = pass;
-            encontrado.rol = db_rol;
-            sqlite3_finalize(stmt);
-            return &encontrado;
+        // AQUÍ OCURRE LA MAGIA: Creamos el objeto específico según el rol
+        if (rolDB == "alumno") {
+            usuarioLogueado = new Alumno(u, p, "Ingenieria", true);
+        } else if (rolDB == "tutor") {
+            usuarioLogueado = new Tutor(u, p, "Dpto. Informatica");
+        } else if (rolDB == "admin") {
+            usuarioLogueado = new Coordinador(u, p);
         }
+    } else {
+        cout << "\n❌ Usuario o contraseña incorrectos.\n";
+        cout << "Presiona Enter...";
+        limpiarBuffer(); cin.get();
     }
 
     sqlite3_finalize(stmt);
-    return nullptr;
+    return usuarioLogueado;
 }
 
-// --- 3. REGISTRO (INSERT) --- añadir nuevo usuario
-
 void registrarse() {
-    cout << "\n============================================\n";
-    cout << "  REGISTRO DE NUEVO ESTUDIANTE\n";
-    cout << "============================================\n";
-
-    string user_input, pass_input;
-    cout << "  Nuevo Usuario: "; cin >> user_input;
-    cout << "  Contraseña: "; cin >> pass_input;
+    cout << "\n--- REGISTRO DE NUEVO ESTUDIANTE ---\n";
+    cout << "(Los tutores y coordinadores deben ser dados de alta por administración)\n";
     
-    // Por defecto, el registro público es para alumnos
+    string u, p;
+    cout << "Usuario: "; cin >> u;
+    cout << "Contraseña: "; cin >> p;
+
     string rol = "alumno"; 
 
-    string sql = "INSERT INTO " + string(USERS_TABLE) + " (usuario, contrasena, rol) VALUES (?, ?, ?);";
+    string sql = "INSERT INTO usuarios (usuario, pass, rol) VALUES (?, ?, ?);";
     sqlite3_stmt* stmt;
-
+    
+    // Preparamos la consulta
     if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) != SQLITE_OK) {
-        cerr << "❌ Error en DB: " << sqlite3_errmsg(db) << endl;
+        cerr << " Error en la base de datos.\n";
         return;
     }
 
-    // Vincular parámetros
-    sqlite3_bind_text(stmt, 1, user_input.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 2, pass_input.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 3, rol.c_str(), -1, SQLITE_STATIC);
+    // Vinculamos los parámetros
+    sqlite3_bind_text(stmt, 1, u.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, p.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, rol.c_str(), -1, SQLITE_STATIC); // Insertamos "alumno" siempre
 
-    int rc = sqlite3_step(stmt);
-    sqlite3_finalize(stmt);
-
-    if (rc == SQLITE_DONE) {
-        cout << "\n  ✅ ¡Registro exitoso! Ya puedes iniciar sesión.\n";
-    } else if (rc == SQLITE_CONSTRAINT) {
-        cout << "  ❌ El usuario '" << user_input << "' ya existe.\n";
+    // Ejecutamos
+    if (sqlite3_step(stmt) == SQLITE_DONE) {
+        cout << "¡Registro exitoso! Ya puedes iniciar sesión como Alumno.\n";
     } else {
-        cout << "  ❌ Error desconocido al guardar.\n";
+        cout << "Error: El nombre de usuario ya existe.\n";
     }
-}
-
-// --- 4. MENÚS (INTERFAZ) ---
-
-void mostrarMenu() {
-    limpiarPantalla();
-    cout << "\n";
-    cout << "--- APP DE TUTORÍAS (DB SQLite) ---\n";
-    cout << "========================\n";
-    cout << "1. Iniciar Sesión\n";
-    cout << "2. Registrarse\n";
-    cout << "3. Salir\n";
-    cout << "========================\n";
-    cout << "Selecciona una opción (1-3): ";
-}
-
-void menuEstudiante(const Usuario& usuario) {
-    bool en_menu = true;
-    int opcion;
-    while (en_menu) {
-        limpiarPantalla(); 
-        cout << "\n MENÚ ESTUDIANTE: " << usuario.usuario << "\n";
-        cout << " 1. Consultar Tutor\n";
-        cout << " 2. Cerrar Sesión\n";
-        cout << "Opción: ";
-        if (!(cin >> opcion)) { limpiarBuffer(); continue; }
-        
-        if (opcion == 1) {
-            cout << "\n Buscando tutor...\nPresiona Enter.";
-            cin.ignore(); cin.get();
-        } else if (opcion == 2) {
-            en_menu = false;
-        }
-    }
-}
-
-void menuTutor(const Usuario& usuario) {
-    bool en_menu = true;
-    int opcion;
-    while (en_menu) {
-        limpiarPantalla();
-        cout << "\n MENÚ TUTOR: " << usuario.usuario << "\n";
-        cout << " 1. Ver alumnos\n ";
-        cout << " 2. Cerrar Sesión\n ";
-        cout << "Opción: ";
-        if (!(cin >> opcion)) { limpiarBuffer(); continue; }
-
-        if (opcion == 1) {
-            cout << "\n Listando alumnos...\nPresiona Enter.";
-            cin.ignore(); cin.get();
-        } else if (opcion == 2) {
-            en_menu = false;
-        }
-    }
-}
-
-void menuAdministrador(const Usuario& usuario) {
-    bool en_menu = true;
-    int opcion;
-    while (en_menu) { 
-        limpiarPantalla();
-        cout << "\n MENÚ ADMIN: " << usuario.usuario << "\n";
-        cout << " 1. Gestionar Usuarios\n";
-        cout << " 2. Cerrar Sesión\n";
-        cout << " Opción: ";
-        if (!(cin >> opcion)) { limpiarBuffer(); continue; }
-
-        if (opcion == 1) {
-            cout << "\n Panel de gestión...\nPresiona Enter.";
-            cin.ignore(); cin.get();
-        } else if (opcion == 2) {
-            en_menu = false;
-        }
-    }
-}
-
-void iniciarSesion() {
-    cout << "\n============================================\n";
-    cout << "  INICIO DE SESIÓN\n";
-    string u, p;
-    cout << "  Usuario: "; cin >> u;
-    cout << "  Contraseña: "; cin >> p;
     
+
     Usuario* usuarioLogueado = buscarUsuario(u, p);
 
     if (usuarioLogueado != nullptr) {

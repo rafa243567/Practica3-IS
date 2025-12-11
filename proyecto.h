@@ -5,28 +5,107 @@
 #include <string>
 #include <sqlite3.h> // Necesario para la integración en la Base de datos 
 
-// Estructura para almacenar los datos de un usuario temporalmente en memoria
-struct Usuario {
-    std::string usuario;
-    std::string contrasena;
-    std::string rol; // "alumno", "tutor", "admin"
+#include <iostream>
+#include <vector>
+#include <sqlite3.h> // Necesario para la base de datos
+
+
+using namespace std;
+
+// --- 1. CLASES DE APOYO (Según tu Diagrama de Clases) ---
+// Estas clases representan objetos que usan los usuarios.
+
+class FichaAcademica {
+public:
+    string datosAcademicos;
+    string asignaturas;
+    
+    // Método para mostrar la ficha
+    void mostrarFicha() {
+        cout << "\n   [FICHA] Datos: " << datosAcademicos << " | Asignaturas: " << asignaturas << endl;
+    }
 };
 
-// --- Funciones de Gestión de Datos ---
-void inicializarDatosPrueba(); // Ahora solo conecta a la DB
+class Chat {
+public:
+    int idChat;
+    
+    // Simulación de cargar historial
+    void cargarHistorial() {
+        cout << "\n   [CHAT] --- Historial de mensajes cargado ---\n";
+        cout << "   Tutor: Hola, ¿cómo vas con la práctica?\n";
+        cout << "   Alumno: Bien, avanzando con el código.\n";
+    }
+};
 
-// --- Declaración de Funciones del Menú ---
-void mostrarMenu();
-void iniciarSesion();
+
+
+class Usuario {
+protected:
+    // Atributos protegidos: solo accesibles por Usuario y sus hijos (Alumno, Tutor...)
+    string usuario;
+    string contrasena;
+    string rol;
+
+public:
+    // Constructor
+    Usuario(string u, string p, string r) 
+        : usuario(u), contrasena(p), rol(r) {}
+    
+    // Destructor virtual (Importante para limpiar memoria correctamente)
+    virtual ~Usuario() {}
+
+    // POLIMORFISMO: Este método es "mágico". Cada hijo lo implementará a su manera.
+    virtual void mostrarMenu() = 0; 
+
+    // Getters
+    string getUsuario() const { return usuario; }
+    string getRol() const { return rol; }
+};
+
+// --- 3. CLASES HIJAS (HERENCIA) ---
+
+class Alumno : public Usuario {
+private:
+    string carrera;
+    bool esPrimerCurso;
+    Chat chatPersonal; // Relación de Composición: Un alumno TIENE un chat
+
+public:
+    // Constructor que llama al constructor del padre
+    Alumno(string u, string p, string c, bool primerCurso) 
+        : Usuario(u, p, "alumno"), carrera(c), esPrimerCurso(primerCurso) {}
+
+    void mostrarMenu() override; // Implementación propia del menú
+    void generarAlerta();        // Funcionalidad específica
+};
+
+class Tutor : public Usuario {
+private:
+    string departamento;
+    
+public:
+    Tutor(string u, string p, string dep) 
+        : Usuario(u, p, "tutor"), departamento(dep) {}
+
+    void mostrarMenu() override; 
+    void verFichaAlumno();       // Funcionalidad específica del tutor
+    void registrarActa();
+};
+
+class Coordinador : public Usuario { // Equivalente a tu Admin
+public:
+    Coordinador(string u, string p) 
+        : Usuario(u, p, "admin") {}
+
+    void mostrarMenu() override;
+    void gestionarAsignaciones();
+};
+
+// --- FUNCIONES GLOBALES ---
+void inicializarDatosPrueba();
 void registrarse();
-
-// Menús por rol
-void menuEstudiante(const Usuario& usuario);
-void menuTutor(const Usuario& usuario);
-void menuAdministrador(const Usuario& usuario);
-
-// --- Función Auxiliar ---
-Usuario* buscarUsuario(const std::string& usuario, const std::string& contrasena);
+Usuario* iniciarSesion(); // Ahora devuelve un puntero a Usuario
 
 // Funciones para la Asignación de Tutores
 void iniciarBaseDeDatos(sqlite3 *db); // Abre la base de datos para guardar los datos que se inscriban en ella
