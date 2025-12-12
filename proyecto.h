@@ -5,11 +5,6 @@
 #include <string>
 #include <sqlite3.h> // Necesario para la integración en la Base de datos 
 
-#include <iostream>
-#include <vector>
-#include <sqlite3.h> // Necesario para la base de datos
-
-
 using namespace std;
 
 // --- 1. CLASES DE APOYO (Según tu Diagrama de Clases) ---
@@ -37,8 +32,6 @@ public:
         cout << "   Alumno: Bien, avanzando con el código.\n";
     }
 };
-
-
 
 class Usuario {
 protected:
@@ -107,8 +100,15 @@ void inicializarDatosPrueba();
 void registrarse();
 Usuario* iniciarSesion(); // Ahora devuelve un puntero a Usuario
 
-// Funciones para la Asignación de Tutores
+
+
+// Funciones para la Asignación de Tutores (CU-04) 
 void iniciarBaseDeDatos(sqlite3 *db); // Abre la base de datos para guardar los datos que se inscriban en ella
 void RealizarAsignacion(sqlite3 *db); // Funcion que se va a usar para realizar la asgnación de tutores a los alumnos 
 void VerAsignaciones(sqlite3 *db); // Funcion que se va a usar para ver las asignaciones realizadas
+
+//Funciones para la realización de la encuesta (CU-05)
+void Encuesta(sqlite3 *db, string alumno_usuario);
+
+
 #endif // PROYECTO_H
