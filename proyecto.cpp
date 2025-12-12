@@ -28,10 +28,10 @@ void Alumno::mostrarMenu() {
     int opcion;
     do {
         limpiarPantalla();
-        cout << "\n=== PANEL DE ESTUDIANTE: " << usuario << " ===\n";
+        cout << "\n=== PANEL DE ESTUDIANTE: " << usuario << " ===\n"; // El 'usuario' ya lo tienes en la clase
         cout << "1. Abrir Chat con Tutor\n";
         cout << "2. Generar Alerta de Incidencia\n";
-        cout << "3. Realizar Encuesta de Satisfaccion\n"; // OPCION NUEVA
+        cout << "3. Realizar Encuesta de Satisfaccion\n"; // <--- TU NUEVA OPCIÓN
         cout << "4. Cerrar Sesión\n";
         cout << "Opción: ";
         cin >> opcion;
@@ -46,9 +46,13 @@ void Alumno::mostrarMenu() {
             limpiarBuffer(); cin.get();
         }
         else if (opcion == 3) {
-            // AQUI CONECTAMOS CON TU FUNCIÓN SIN TOCARLA
-            // Le pasamos la variable global 'db' y el usuario actual
+            // === AQUÍ LLAMAMOS A TU FUNCIÓN ===
+            // 'db' es la variable global que tienes arriba en proyecto.cpp
+            // 'usuario' es el atributo de la clase (ej. "juan.perez")
             Encuesta(db, usuario); 
+            
+            // Pausa para que el alumno lea el mensaje de "Encuesta enviada"
+            cout << "\nPresiona Enter para volver al menú.";
             limpiarBuffer(); cin.get();
         }
 
@@ -106,26 +110,30 @@ void Coordinador::mostrarMenu() {
     do {
         limpiarPantalla();
         cout << "\n=== PANEL DE COORDINADOR ===\n";
-        cout << "1. Gestionar Asignaciones (Manual)\n";
-        cout << "2. Ver Lista de Asignaciones\n";
+        cout << "1. Gestionar Asignaciones (Asignar Tutor)\n"; // <--- TU FUNCION
+        cout << "2. Ver Lista de Asignaciones\n";            // <--- TU OTRA FUNCION
         cout << "3. Cerrar Sesión\n";
         cout << "Opción: ";
         cin >> opcion;
 
         if (opcion == 1) {
-            // CONEXIÓN CON TU FUNCIÓN ORIGINAL
+            // === AQUÍ LLAMAMOS A LA ASIGNACIÓN ===
+            // Como tu función tiene cin/cout dentro, tomará el control de la consola
             RealizarAsignacion(db); 
+            
+            cout << "\nPresiona Enter para continuar.";
             limpiarBuffer(); cin.get();
         }
         else if (opcion == 2) {
-            // CONEXIÓN CON TU FUNCIÓN ORIGINAL
+            // === AQUÍ LLAMAMOS A VER LISTA ===
             VerAsignaciones(db);
+            
+            cout << "\nPresiona Enter para continuar.";
             limpiarBuffer(); cin.get();
         }
 
     } while(opcion != 3);
 }
-
 
 // ==========================================
 // GESTIÓN DE BASE DE DATOS Y LOGIN
@@ -184,7 +192,7 @@ Usuario* iniciarSesion() {
             usuarioLogueado = new Coordinador(u, p);
         }
     } else {
-        cout << "\n❌ Usuario o contraseña incorrectos.\n";
+        cout << "\n Usuario o contraseña incorrectos.\n";
         cout << "Presiona Enter...";
         limpiarBuffer(); cin.get();
     }

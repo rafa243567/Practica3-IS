@@ -79,4 +79,5 @@ void RealizarAsignacion(sqlite3 *db);
 void VerAsignaciones(sqlite3 *db); 
 void Encuesta(sqlite3 *db, string alumno_usuario);
 
+// Al final de proyecto.h, antes del #endif
 #endif
