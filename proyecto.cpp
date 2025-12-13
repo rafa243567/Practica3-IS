@@ -314,7 +314,11 @@ bool Asignado (sqlite3* db, int id_alumno) {
 }
 
 
+
 // función para introducir los datos y la asignación de tutor y alumno 
+// CONSULTAS DE ASIGNACION 8CU-04)
+
+
 void RealizarAsignacion(sqlite3 *db) {
     int id_tutor, id_alumno;
     string nom_tutor, nom_alumno;
@@ -392,6 +396,98 @@ void VerAsignaciones(sqlite3 *db) {
 }
 
 
+// FUNCION PARA QUE EL ALUMNO PUEDA VER SU TUTOR ASIGNADO 
+void MostrarTutorAsignado(sqlite3 *db, string alumno_usuario){
+    sqlite3_stmt* stmt;
+    int id_alumno = -1;
+    string nombre_tutor = ""; // Inicializar estas variables para poder comprobar fallos mas rapido 
+    bool tiene_tutor = false;
+
+    cout << " --- TUTOR ASIGNADO --- " << endl;
+
+    //Obtener el ID del alumno a traves del nombre registrado
+    string sql_id = "SELECT id FROM usuarios WHERE usuario = ?;";
+    
+    if (sqlite3_prepare_v2(db, sql_id.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, alumno_usuario.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            id_alumno = sqlite3_column_int(stmt, 0);
+        }
+    }
+    sqlite3_finalize(stmt);  // Limpiar el buffer para que no se queden datos mezclados 
+    if (id_alumno == -1) {
+        cout << " ERROR, El alumno no ha sido encontrado." << endl;
+        return;
+    }
+
+    //  Buscar en la tabla el tutor asignado a ese nombre 
+    string sql_asig = "SELECT nombre_tutor FROM asignaciones WHERE id_alumno = ?;";
+    
+    if (sqlite3_prepare_v2(db, sql_asig.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id_alumno);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            const unsigned char* texto = sqlite3_column_text(stmt, 0);
+            nombre_tutor = string(reinterpret_cast<const char*>(texto));
+            tiene_tutor = true;
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    if (tiene_tutor) {
+        cout << " Tu tutor asignado es: " << nombre_tutor << endl;
+    } else {
+        cout << " Aun no tienes un tutor asignado, pronto se te asignará uno ." << endl;
+    }
+}
+
+// FUNCION PARA QUE EL TUTOR PUEDA VER SUS ALUMNOS ASIGNADOS
+void MostrarAlumnosAsignados(sqlite3 *db, string tutor_usuario){
+    sqlite3_stmt* stmt;
+    int id_tutor = -1;
+
+    cout << " --- ALUMNOS ASIGNADOS --- " << endl;
+    
+    //Obtener el ID del tutor a traves del nombre registrado
+    string sql_id = "SELECT id FROM usuarios WHERE usuario = ?;";
+    if (sqlite3_prepare_v2(db, sql_id.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, tutor_usuario.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            id_tutor = sqlite3_column_int(stmt, 0);
+        }
+    }
+    sqlite3_finalize(stmt); //Limpia el buffer
+    if (id_tutor == -1) {
+        cout << "ERROR, no ha sido encontrado el usuario." << endl;
+        return;
+    }
+
+    string sql_lista = "SELECT nombre_alumno, fecha FROM asignaciones WHERE id_tutor = ?;";
+    if (sqlite3_prepare_v2(db, sql_lista.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id_tutor);
+        
+        int contador = 0;
+        cout << "Listado de alumnos a tu cargo:" << endl;
+        cout << "---------------------------------" << endl;
+
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            string alumno = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+            string fecha = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+            
+            cout << " El alumno:  " << alumno << "  está asignado desde: " << fecha << " " << endl;
+            contador++;
+        }
+        
+        if (contador == 0) {
+            cout << "NO tienes ningún alumno asignado." << endl;
+        }
+    } else {
+        cout << "Error al consultar la lista de alumnos." << endl;
+    }
+    sqlite3_finalize(stmt);
+}
+
+
+ // FUNCIONES DE CREAR ENCUESTA (CU-07)
 void Encuesta(sqlite3 *db, string alumno_usuario) {
     sqlite3_stmt* stmt;
     int id_alumno = -1;
@@ -473,7 +569,6 @@ void Encuesta(sqlite3 *db, string alumno_usuario) {
     string sql_guardar = "INSERT INTO encuestas (id_tutor, id_alumno, puntuacion, comentario) VALUES (?, ?, ?, ?);";
     
     if (sqlite3_prepare_v2(db, sql_guardar.c_str(), -1, &stmt, 0) == SQLITE_OK) {
-        // Rellenamos los 4 huecos (?)
         sqlite3_bind_int(stmt, 1, id_tutor);
         sqlite3_bind_int(stmt, 2, id_alumno);
         sqlite3_bind_int(stmt, 3, puntuacion);
@@ -493,6 +588,54 @@ void Encuesta(sqlite3 *db, string alumno_usuario) {
     sqlite3_finalize(stmt); //limpia para dejar el buffer vacio
 }
 
+
+// REVISION DE LOS RESULTADOS DE LAS ENCUESTAS 
+
+void VerResultadosEncuestas(sqlite3 *db) {
+    sqlite3_stmt* stmt;
+
+    cout << "--- RESULTADOS DE LAS ENCUESTAS DE SATISFACCIÓN ---" << endl;
+   string sql = "SELECT id_tutor, id_alumno, puntuacion, comentario, fecha FROM encuestas;";
+    
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        
+        int contador = 0;
+        double suma_notas = 0;
+
+        cout << "ID Tutor | ID Alumno | Nota | Comentario" << endl;
+        cout << "----------------------------------------------------" << endl;
+
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            int id_t = sqlite3_column_int(stmt, 0);
+            int id_a = sqlite3_column_int(stmt, 1);
+            int nota = sqlite3_column_int(stmt, 2);
+            
+            // Leer texto de forma segura
+            string coment = "Sin comentario";
+            if (sqlite3_column_text(stmt, 3)) {
+                coment = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 3)));
+            }
+
+            cout << "   " << id_t << "     |    " << id_a << "      |  " << nota << "   | " << coment << endl;
+
+            suma_notas += nota;
+            contador++;
+        }
+
+        cout << "----------------------------------------------------" << endl;
+        
+        if (contador > 0) {
+            double media = suma_notas / contador;
+            cout << " Total encuestas: " << contador << endl;
+            cout << " Nota Media del Profesorado: " << media << " / 5" << endl;
+        } else {
+            cout << "(Aún no se han recibido encuestas)" << endl;
+        }
+        } else {
+        cout << "Error al leer la tabla de encuestas." << endl;
+    }
+    sqlite3_finalize(stmt);
+}
 
 
 

@@ -107,8 +107,14 @@ void iniciarBaseDeDatos(sqlite3 *db); // Abre la base de datos para guardar los 
 void RealizarAsignacion(sqlite3 *db); // Funcion que se va a usar para realizar la asgnación de tutores a los alumnos 
 void VerAsignaciones(sqlite3 *db); // Funcion que se va a usar para ver las asignaciones realizadas
 
+void MostrarTutorAsignado(sqlite3 *db, string alumno_usuario); // Funcion que muestra al alumno su tutor 
+void MostrarAlumnosAsignados(sqlite3 *db, string tutor_usuario); //Funcion que muestra al tutor los alumnos que le han asignado 
+
+
+
 //Funciones para la realización de la encuesta (CU-05)
 void Encuesta(sqlite3 *db, string alumno_usuario);
+void VerResultadosEncuestas(sqlite3 *db); // funcion para ver los resultados de las encuestas realizadas
 
 
 #endif // PROYECTO_H
