@@ -119,7 +119,7 @@ void HacerEncuestaManual(sqlite3 *db) {
 
 void VerResultados(sqlite3 *db) {
     cout << "\n--- 📊 TABLA DE RESULTADOS EN BASE DE DATOS ---" << endl;
-    cout << "ID_TUTOR | ID_ALUMNO | NOTA | COMENTARIO" << endl;
+    cout << "ID_TUTOR | ID_ALUMNO | VALORACIÓN | COMENTARIO" << endl;
     cout << "--------------------------------------------" << endl;
     sqlite3_stmt* stmt;
     sqlite3_prepare_v2(db, "SELECT * FROM encuestas;", -1, &stmt, 0);
