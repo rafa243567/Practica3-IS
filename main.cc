@@ -66,10 +66,6 @@ int main() {
     }
 
 
-inicializarDatosPrueba();
-
-iniciarSesion();
-
     return 0;
 
 }
