@@ -74,6 +74,9 @@ void registrarse();
 Usuario* iniciarSesion(); 
 
 
+//FUNCIONES PARA REGISTRAR CADA ACTA (CU-03)
+void RegistrarActa(sqlite3 *db, string tutor_usuario);
+
 
 
 // Funciones para la Asignación de Tutores (CU-04) 

@@ -243,7 +243,8 @@ int MostrarDatos (void *NotUsed, int argc, char **argv, char **azColName){
 }
 
 void iniciarBaseDeDatos(sqlite3 *db) {
-    char *error = 0; 
+    char *error = 0;
+    char *mensajeError = 0; 
 
     //crea uan tabla en la base de datos coon todos los apartados necesarios para la asignaicon de tutores
     string sql_asignacion = "CREATE TABLE IF NOT EXISTS asignaciones ("
@@ -268,12 +269,24 @@ void iniciarBaseDeDatos(sqlite3 *db) {
                           "comentario TEXT, "      // Comentario adicional
                           "fecha TEXT DEFAULT CURRENT_TIMESTAMP);";
 
+        
         resultado = sqlite3_exec(db, sql_encuesta.c_str(), 0, 0, &error);
     if (resultado != SQLITE_OK) {
         cout << "Error tabla encuestas: " << error << endl;
         sqlite3_free(error);
     }
-} 
+
+    //Crear la tabla para registrar el acta
+    string sql_actas = "CREATE TABLE IF NOT EXISTS actas ("
+                       "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                       "id_tutor INTEGER, "
+                       "id_alumno INTEGER, "
+                       "fecha TEXT, "
+                       "resumen TEXT);";
+
+    sqlite3_exec(db, sql_actas.c_str(), 0, 0, &mensajeError);
+}
+
 
 
 bool verificarUsuario (sqlite3* db, int id, string rolEsperado) {
@@ -313,9 +326,104 @@ bool Asignado (sqlite3* db, int id_alumno) {
 }
 
 
+// REGISTRAR ACTA (CU-03)
+void RegistrarActa(sqlite3 *db, string tutor_usuario){
+    sqlite3_stmt* stmt;
+    int id_tutor = -1;
+
+cout << "---- REGISTRO DE ACTA----" <<endl; 
+
+// OBTENER ID DEL TUTOR
+    string sql_tutor = "SELECT id FROM usuarios WHERE usuario = ?;";
+    if (sqlite3_prepare_v2(db, sql_tutor.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, tutor_usuario.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            id_tutor = sqlite3_column_int(stmt, 0);
+        }
+    }
+    sqlite3_finalize(stmt); //LImpiar buffer 
+
+    if (id_tutor == -1) { cout << "ERROR, Usuario no identificado." << endl; return; }
+
+    //  MOSTRAR LISTA DE ALUMNOS ASIGNADOS
+    cout << "Seleccione el alumno con el que se ha reunido:" << endl;
+    cout << "---------------------------------------------" << endl;
+    
+    string sql_lista = "SELECT id_alumno, nombre_alumno FROM asignaciones WHERE id_tutor = ?;";
+    bool tiene_alumnos = false;
+
+    if (sqlite3_prepare_v2(db, sql_lista.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id_tutor);
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            int id_a = sqlite3_column_int(stmt, 0);
+            
+            string nom = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+            cout << " [" << id_a << "] " << nom << endl;
+            tiene_alumnos = true;
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    if (!tiene_alumnos) {
+        cout << " No tienes alumnos asignados. No puedes crear actas." << endl;
+        return;
+    }
+
+    // PEDIR DATOS DEL ACTA
+    int id_alumno_elegido;
+    string fecha, resumen;
+
+    cout << "\nIndica el ID del alumno: ";
+    if (!(cin >> id_alumno_elegido)) {
+        cout << " Error: ID inválido." << endl; 
+        cin.clear(); cin.ignore(10000, '\n'); return;
+    }
+    cin.ignore(10000, '\n'); // Limpiar buffer para no mezlcar con getline
+
+    cout << "Fecha de la reunión (DD/MM/AAAA): ";
+    getline(cin, fecha);
+
+
+    do {
+        cout << "Resumen / Problemas tratados (Obligatorio): ";
+        getline(cin, resumen);
+        
+        if (resumen.empty()) {
+            cout << " Error: El resumen no puede estar vacío. Inténtalo de nuevo." << endl;
+        }
+    } while (resumen.empty());
+
+    // GUARDAR EN LA BASE DE DATOS
+    string sql_guardar = "INSERT INTO actas (id_tutor, id_alumno, fecha, resumen) VALUES (?, ?, ?, ?);";
+    
+    if (sqlite3_prepare_v2(db, sql_guardar.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id_tutor);
+        sqlite3_bind_int(stmt, 2, id_alumno_elegido);
+        sqlite3_bind_text(stmt, 3, fecha.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 4, resumen.c_str(), -1, SQLITE_STATIC);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE) {
+            cout << " ACTA REGISTRADA CORRECTAMENTE." << endl;
+            cout << "Se ha guardado constancia de la reunión." << endl;
+        } else {
+            cout << " Error, el acta no se ha guardado ." << endl;
+        }
+    } else {
+        cout << "Error SQL al preparar guardado." << endl;
+    }
+    sqlite3_finalize(stmt);
+}
+
+
+
+
+
+
+
+
 
 // función para introducir los datos y la asignación de tutor y alumno 
-// CONSULTAS DE ASIGNACION 8CU-04)
+// CONSULTAS DE ASIGNACION CU-04)
 
 
 void RealizarAsignacion(sqlite3 *db) {
