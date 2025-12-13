@@ -110,29 +110,30 @@ void Coordinador::mostrarMenu() {
     do {
         limpiarPantalla();
         cout << "\n=== PANEL DE COORDINADOR ===\n";
-        cout << "1. Gestionar Asignaciones (Asignar Tutor)\n"; // <--- TU FUNCION
-        cout << "2. Ver Lista de Asignaciones\n";            // <--- TU OTRA FUNCION
-        cout << "3. Cerrar Sesión\n";
+        cout << "1. Gestionar Asignaciones\n";
+        cout << "2. Ver Lista de Asignaciones\n";
+        cout << "3. Ver Resultados de Encuestas\n"; // <--- AÑADE ESTO
+        cout << "4. Cerrar Sesión\n";
         cout << "Opción: ";
-        cin >> opcion;
+        
+        if (!(cin >> opcion)) { /* ... validación ... */ }
 
         if (opcion == 1) {
-            // === AQUÍ LLAMAMOS A LA ASIGNACIÓN ===
-            // Como tu función tiene cin/cout dentro, tomará el control de la consola
             RealizarAsignacion(db); 
-            
-            cout << "\nPresiona Enter para continuar.";
             limpiarBuffer(); cin.get();
         }
         else if (opcion == 2) {
-            // === AQUÍ LLAMAMOS A VER LISTA ===
             VerAsignaciones(db);
-            
+            limpiarBuffer(); cin.get();
+        }
+        else if (opcion == 3) {
+            // === CONECTA LA FUNCIÓN AQUÍ ===
+            VerResultadosEncuestas(db);
             cout << "\nPresiona Enter para continuar.";
             limpiarBuffer(); cin.get();
         }
 
-    } while(opcion != 3);
+    } while(opcion != 4);
 }
 
 // ==========================================
@@ -152,6 +153,8 @@ void inicializarDatosPrueba() {
                  "usuario TEXT UNIQUE, pass TEXT, rol TEXT);";
     char* err;
     sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+
+    iniciarBaseDeDatos(db);
 }
 
 // ESTA ES LA FUNCIÓN CLAVE (FACTORY)
