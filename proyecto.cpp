@@ -83,26 +83,38 @@ void Alumno::generarAlerta() {
 }
 
 // --- TUTOR ---
+// --- TUTOR (CORREGIDO) ---
 void Tutor::mostrarMenu() {
     int opcion;
     do {
-        // ... (código de limpiar pantalla igual) ...
-        // ... couts iguales ...
+        limpiarPantalla();
+        cout << "\n=== PANEL DE TUTOR: " << usuario << " ===\n";
+        cout << "1. Ver Alumnos Asignados\n";
+        cout << "2. Registrar Acta de Sesión\n";
+        cout << "3. Cerrar Sesión\n"; // <--- Esta es la opción para salir
+        cout << "Opción: ";
+        
+        // === ESTO ES LO QUE TE FALTABA ===
+        // Sin esto, el bucle es infinito porque nunca lee el número
+        if (!(cin >> opcion)) {
+            cout << "Entrada inválida.\n";
+            limpiarBuffer();
+            continue;
+        }
+        // =================================
 
         if (opcion == 1) {
-            // CAMBIO: Usar la función real de SQL
-            // 'db' es la variable global, 'usuario' es el atributo de la clase
             MostrarAlumnosAsignados(db, usuario); 
+            cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         } 
         else if (opcion == 2) {
-            // CAMBIO: Usar la función real de SQL
             RegistrarActa(db, usuario);
+            cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         }
-    } while(opcion != 3);
+    } while(opcion != 3); // Si no lee el 3, nunca sale de aquí
 }
-
 
 // --- Lógica del COORDINADOR (ADMIN) ---
 void Coordinador::mostrarMenu() {
