@@ -1,5 +1,6 @@
 #include "proyecto.h"
 #include <limits>
+#include <sstream>
 
 // Variables globales de SQLite
 static sqlite3* db;
@@ -62,14 +63,17 @@ void Alumno::mostrarMenu() {
             limpiarBuffer(); cin.get();
         }
         else if (opcion == 3) {
-            // Funcionalidad simulada (Clase Chat)
-            chatPersonal.cargarHistorial();
+            string tutor_asig = ObtenerTutorAsignadoUsuario(db, usuario);
+            if (tutor_asig != "") {
+                MostrarHistorialChat(db, usuario, tutor_asig);
+            } else {
+                cout << " No tienes tutor asignado. No se puede abrir el chat." << endl;
+            }
             cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         } 
         else if (opcion == 4) {
-            // Funcionalidad simulada
-            generarAlerta();
+            GenerarAlertaIncidencia(db, usuario);
             limpiarBuffer(); cin.get();
         }
 
@@ -91,7 +95,8 @@ void Tutor::mostrarMenu() {
         cout << "\n=== PANEL DE TUTOR: " << usuario << " ===\n";
         cout << "1. Ver Alumnos Asignados\n";
         cout << "2. Registrar Acta de Sesión\n";
-        cout << "3. Cerrar Sesión\n"; // <--- Esta es la opción para salir
+        cout << "3. Abrir Chat con Alumno\n"; // Nuevo: Opción de Chat
+        cout << "4. Cerrar Sesión\n"; 
         cout << "Opción: ";
         
         // === ESTO ES LO QUE TE FALTABA ===
@@ -113,7 +118,17 @@ void Tutor::mostrarMenu() {
             cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         }
-    } while(opcion != 3); // Si no lee el 3, nunca sale de aquí
+        else if (opcion == 3) {
+            string alumno_asig = ObtenerAlumnoAsignadoUsuario(db, usuario);
+            if (alumno_asig != "") {
+                MostrarHistorialChat(db, usuario, alumno_asig);
+            } else {
+                cout << " No tienes alumnos asignados. No se puede abrir el chat." << endl;
+            }
+            cout << "\nPresiona Enter para volver.";
+            limpiarBuffer(); cin.get();
+        }
+    } while(opcion != 4); // Si no lee el 4, nunca sale de aquí
 }
 
 // --- Lógica del COORDINADOR (ADMIN) ---
@@ -300,6 +315,38 @@ void iniciarBaseDeDatos(sqlite3 *db) {
                        "resumen TEXT);";
 
     sqlite3_exec(db, sql_actas.c_str(), 0, 0, &mensajeError);
+
+    // NUEVA TABLA: ALERTA DE INCIDENCIAS (CU-04)
+    string sql_alertas = "CREATE TABLE IF NOT EXISTS alertas ("
+                         "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                         "emisor_usuario TEXT, "
+                         "categoria TEXT, "       // Salud, Convivencia, Academico
+                         "descripcion TEXT, "     // Descripción opcional
+                         "fecha TEXT DEFAULT CURRENT_TIMESTAMP, "
+                         "estado TEXT DEFAULT 'ABIERTA');";
+    
+    resultado = sqlite3_exec(db, sql_alertas.c_str(), 0, 0, &error);
+    if (resultado != SQLITE_OK) {
+        cout << "Error tabla alertas: " << error << endl;
+        sqlite3_free(error);
+    }
+    
+    // NUEVA TABLA: CHAT / MENSAJES (CU-02)
+    // Nota: Simplificamos el chat a un registro de mensajes bidireccionales
+    string sql_chat = "CREATE TABLE IF NOT EXISTS mensajes ("
+                      "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                      "remitente TEXT, " 
+                      "receptor TEXT, " 
+                      "contenido TEXT, " 
+                      "fecha TEXT DEFAULT CURRENT_TIMESTAMP, "
+                      "archivo_adjunto TEXT DEFAULT '',"
+                      "es_alerta INTEGER DEFAULT 0);"; // 0 o 1
+    
+    resultado = sqlite3_exec(db, sql_chat.c_str(), 0, 0, &error);
+    if (resultado != SQLITE_OK) {
+        cout << "Error tabla mensajes: " << error << endl;
+        sqlite3_free(error);
+    }
 }
 
 
@@ -774,10 +821,179 @@ bool esTextoValido(string texto) {
 }
 
 
+// ==========================================
+// IMPLEMENTACIÓN DE CHAT Y ALERTAS
+// ==========================================
 
+// --- FUNCIONES DE CHAT (CU-02) ---
 
-
+string ObtenerTutorAsignadoUsuario(sqlite3 *db, string alumno_usuario) {
+    // Retorna el nombre de usuario del tutor asignado o "" si no tiene.
+    sqlite3_stmt* stmt;
+    string tutor_usuario = "";
+    string sql = "SELECT T.usuario FROM asignaciones A JOIN usuarios T ON A.id_tutor = T.id JOIN usuarios AL ON A.id_alumno = AL.id WHERE AL.usuario = ?;";
     
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, alumno_usuario.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            tutor_usuario = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+        }
+    }
+    sqlite3_finalize(stmt);
+    return tutor_usuario;
+}
+
+string ObtenerAlumnoAsignadoUsuario(sqlite3 *db, string tutor_usuario) {
+    // Retorna el nombre de usuario del primer alumno asignado o "" si no tiene.
+    sqlite3_stmt* stmt;
+    string alumno_usuario = "";
+    // Simplificación: Solo devuelve el primer alumno si el tutor tiene varios.
+    string sql = "SELECT AL.usuario FROM asignaciones A JOIN usuarios AL ON A.id_alumno = AL.id JOIN usuarios T ON A.id_tutor = T.id WHERE T.usuario = ? LIMIT 1;";
+    
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, tutor_usuario.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            alumno_usuario = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+        }
+    }
+    sqlite3_finalize(stmt);
+    return alumno_usuario;
+}
+
+void MostrarHistorialChat(sqlite3* db, string usuario_actual, string otro_usuario) {
+    sqlite3_stmt* stmt;
+    string mensaje_entrada;
+
+    // La consulta selecciona mensajes donde el remitente Y el receptor son A y B (bidireccional)
+    string sql = "SELECT remitente, contenido, fecha FROM mensajes WHERE (remitente = ? AND receptor = ?) OR (remitente = ? AND receptor = ?) ORDER BY fecha ASC;";
+    
+    limpiarPantalla();
+    cout << "=== CHAT PERSONAL: " << otro_usuario << " ===\n";
+    cout << "------------------------------------------\n";
+
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        // Enlazar los 4 parámetros (bidireccional)
+        sqlite3_bind_text(stmt, 1, usuario_actual.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, otro_usuario.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, otro_usuario.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 4, usuario_actual.c_str(), -1, SQLITE_STATIC);
+
+        int contador = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            string remitente = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+            string contenido = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+            string fecha = string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+
+            if (remitente == usuario_actual) {
+                cout << " >> YO (" << fecha.substr(11, 5) << "): " << contenido << endl;
+            } else {
+                cout << " << " << remitente << " (" << fecha.substr(11, 5) << "): " << contenido << endl;
+            }
+            contador++;
+        }
+        sqlite3_finalize(stmt);
+
+        if (contador == 0) {
+            cout << " * Comienza una nueva conversación. *\n";
+        }
+        cout << "------------------------------------------\n";
+
+        // Bucle de envío de mensajes
+        do {
+            cout << "[" << usuario_actual << "] Mensaje (o 'salir'): ";
+            // Usamos getline con ws para consumir el espacio en blanco inicial si existe
+            getline(cin >> ws, mensaje_entrada);
+            
+            if (mensaje_entrada.empty()) continue;
+
+            if (mensaje_entrada != "salir") {
+                EnviarMensajeChat(db, usuario_actual, otro_usuario, mensaje_entrada);
+                // Volver a mostrar el historial incluyendo el nuevo mensaje (simplificación)
+                limpiarPantalla();
+                MostrarHistorialChat(db, usuario_actual, otro_usuario); 
+                return; // Salimos del bucle interno para simplificar
+            }
+        } while (mensaje_entrada != "salir");
+
+    } else {
+        cout << "Error al cargar el chat." << endl;
+        sqlite3_finalize(stmt);
+    }
+}
+
+void EnviarMensajeChat(sqlite3* db, string remitente_usuario, string receptor_usuario, const string& mensaje) {
+    sqlite3_stmt* stmt;
+
+    string sql = "INSERT INTO mensajes (remitente, receptor, contenido) VALUES (?, ?, ?);";
+    
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, remitente_usuario.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, receptor_usuario.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, mensaje.c_str(), -1, SQLITE_STATIC);
+        
+        if (sqlite3_step(stmt) == SQLITE_DONE) {
+            // cout << "Mensaje enviado." << endl; // Mensaje retirado para que no interfiera en la UI del chat
+        } else {
+            cout << "Error al enviar mensaje: " << sqlite3_errmsg(db) << endl;
+        }
+    }
+    sqlite3_finalize(stmt);
+}
 
 
+// --- FUNCIONES DE ALERTA (CU-04) ---
 
+string CategoriaAlertaToString(CategoriaAlerta cat) {
+    switch(cat) {
+        case CategoriaAlerta::Salud: return "Salud";
+        case CategoriaAlerta::Convivencia: return "Convivencia";
+        case CategoriaAlerta::Academico: return "Academico";
+    }
+    return "Desconocido";
+}
+
+void GenerarAlertaIncidencia(sqlite3* db, string emisor_usuario) {
+    int cat_int;
+    string descripcion;
+    sqlite3_stmt* stmt;
+
+    cout << "\n--- GENERAR ALERTA URGENTE ---" << endl;
+    cout << "Categorías disponibles:" << endl;
+    cout << " 1. Salud" << endl;
+    cout << " 2. Convivencia" << endl;
+    cout << " 3. Académico" << endl;
+    cout << "Seleccione la categoría (1-3): ";
+
+    if (!(cin >> cat_int) || cat_int < 1 || cat_int > 3) {
+        cout << "Error: Categoría no válida." << endl;
+        limpiarBuffer();
+        return;
+    }
+    cin.ignore();
+    
+    CategoriaAlerta categoria = static_cast<CategoriaAlerta>(cat_int);
+    string cat_str = CategoriaAlertaToString(categoria);
+
+    cout << "Escriba una descripción detallada (opcional): ";
+    getline(cin, descripcion);
+
+    // 5. El sistema registra la alerta con fecha y emisor (RI-5)
+    string sql_guardar = "INSERT INTO alertas (emisor_usuario, categoria, descripcion) VALUES (?, ?, ?);";
+    
+    if (sqlite3_prepare_v2(db, sql_guardar.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, emisor_usuario.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, cat_str.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 3, descripcion.c_str(), -1, SQLITE_STATIC);
+
+        if (sqlite3_step(stmt) == SQLITE_DONE) {
+            // 6. El sistema notifica inmediatamente al coordinador (simulación)
+            cout << "\n🚨 ALERTA URGENTE ENVIADA." << endl;
+            cout << "La incidencia de categoría '" << cat_str << "' ha sido notificada al Coordinador." << endl;
+        } else {
+            cout << "Error al registrar la alerta: " << sqlite3_errmsg(db) << endl;
+        }
+    } else {
+        cout << "Error SQL al preparar la alerta." << endl;
+    }
+    sqlite3_finalize(stmt);
+}

@@ -38,6 +38,24 @@ public:
     }
 };
 
+// Nuevas Clases/Enums para Alertas y Chat Real
+enum class CategoriaAlerta {
+    Salud = 1,
+    Convivencia = 2,
+    Academico = 3
+};
+
+// Declaración de funciones de Alerta
+void GenerarAlertaIncidencia(sqlite3* db, string emisor_usuario);
+string CategoriaAlertaToString(CategoriaAlerta cat);
+
+// Declaración de funciones de Chat
+void MostrarHistorialChat(sqlite3* db, string usuario_actual, string tutor_alumno_usuario);
+void EnviarMensajeChat(sqlite3* db, string remitente_usuario, string receptor_usuario, const string& mensaje);
+string ObtenerTutorAsignadoUsuario(sqlite3 *db, string alumno_usuario);
+string ObtenerAlumnoAsignadoUsuario(sqlite3 *db, string tutor_usuario);
+
+
 class Alumno : public Usuario {
 private:
     string carrera;
