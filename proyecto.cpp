@@ -24,39 +24,56 @@ void limpiarPantalla() {
 // ==========================================
 
 // --- ALUMNO ---
+// --- ALUMNO ---
 void Alumno::mostrarMenu() {
     int opcion;
     do {
         limpiarPantalla();
-        cout << "\n=== PANEL DE ESTUDIANTE: " << usuario << " ===\n"; // El 'usuario' ya lo tienes en la clase
-        cout << "1. Abrir Chat con Tutor\n";
-        cout << "2. Generar Alerta de Incidencia\n";
-        cout << "3. Realizar Encuesta de Satisfaccion\n"; // <--- TU NUEVA OPCIÓN
-        cout << "4. Cerrar Sesión\n";
+        // 'usuario' es la variable heredada de la clase padre Usuario
+        cout << "\n=== PANEL DE ESTUDIANTE: " << usuario << " ===\n";
+        cout << "1. Ver mi Tutor Asignado\n";            // <--- NUEVO: Antes no podías ver quién era
+        cout << "2. Realizar Encuesta de Satisfacción\n"; // <--- INTEGRADO: Tu función de encuesta
+        cout << "3. Abrir Chat con Tutor\n";
+        cout << "4. Generar Alerta de Incidencia\n";
+        cout << "5. Cerrar Sesión\n";
         cout << "Opción: ";
-        cin >> opcion;
+
+        // Validación básica de entrada para evitar bucles infinitos si meten letras
+        if (!(cin >> opcion)) {
+            cout << "Entrada inválida.\n";
+            limpiarBuffer();
+            continue;
+        }
 
         if (opcion == 1) {
+            // Llamamos a la función global que definiste abajo
+            // Pasamos 'db' (global) y 'usuario' (atributo de la clase)
+            MostrarTutorAsignado(db, usuario);
+            
+            cout << "\nPresiona Enter para volver al menú.";
+            limpiarBuffer(); cin.get();
+        }
+        else if (opcion == 2) {
+            // Llamamos a tu función de encuesta
+            Encuesta(db, usuario);
+            
+            // La propia función Encuesta ya tiene couts, pero añadimos pausa
+            cout << "\nPresiona Enter para volver.";
+            limpiarBuffer(); cin.get();
+        }
+        else if (opcion == 3) {
+            // Funcionalidad simulada (Clase Chat)
             chatPersonal.cargarHistorial();
             cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         } 
-        else if (opcion == 2) {
+        else if (opcion == 4) {
+            // Funcionalidad simulada
             generarAlerta();
             limpiarBuffer(); cin.get();
         }
-        else if (opcion == 3) {
-            // === AQUÍ LLAMAMOS A TU FUNCIÓN ===
-            // 'db' es la variable global que tienes arriba en proyecto.cpp
-            // 'usuario' es el atributo de la clase (ej. "juan.perez")
-            Encuesta(db, usuario); 
-            
-            // Pausa para que el alumno lea el mensaje de "Encuesta enviada"
-            cout << "\nPresiona Enter para volver al menú.";
-            limpiarBuffer(); cin.get();
-        }
 
-    } while(opcion != 4);
+    } while(opcion != 5);
 }
 
 
@@ -66,42 +83,37 @@ void Alumno::generarAlerta() {
 }
 
 // --- TUTOR ---
+// --- TUTOR (CORREGIDO) ---
 void Tutor::mostrarMenu() {
     int opcion;
     do {
         limpiarPantalla();
-        cout << "\n=== PANEL DE TUTOR: " << usuario << " (" << departamento << ") ===\n";
-        cout << "1. Ver Ficha de Alumnos Asignados\n";
+        cout << "\n=== PANEL DE TUTOR: " << usuario << " ===\n";
+        cout << "1. Ver Alumnos Asignados\n";
         cout << "2. Registrar Acta de Sesión\n";
-        cout << "3. Cerrar Sesión\n";
+        cout << "3. Cerrar Sesión\n"; // <--- Esta es la opción para salir
         cout << "Opción: ";
-        cin >> opcion;
+        
+        // === ESTO ES LO QUE TE FALTABA ===
+        // Sin esto, el bucle es infinito porque nunca lee el número
+        if (!(cin >> opcion)) {
+            cout << "Entrada inválida.\n";
+            limpiarBuffer();
+            continue;
+        }
+        // =================================
 
         if (opcion == 1) {
-            verFichaAlumno();
+            MostrarAlumnosAsignados(db, usuario); 
+            cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         } 
         else if (opcion == 2) {
-            registrarActa();
+            RegistrarActa(db, usuario);
+            cout << "\nPresiona Enter para volver.";
             limpiarBuffer(); cin.get();
         }
-    } while(opcion != 3);
-}
-
-void Tutor::verFichaAlumno() {
-    cout << "\n--- Consultando Base de Datos Académica ---\n";
-    // Simulamos la creación de una ficha (objeto temporal)
-    FichaAcademica ficha;
-    ficha.datosAcademicos = "Juan Pérez (1º Curso)";
-    ficha.asignaturas = "Matemáticas, Programación, Física";
-    ficha.mostrarFicha();
-}
-
-void Tutor::registrarActa() {
-    string tema;
-    cout << "\nTema tratado en la sesión: ";
-    cin >> tema;
-    cout << ">> Acta guardada correctamente en el historial del alumno.\n";
+    } while(opcion != 3); // Si no lee el 3, nunca sale de aquí
 }
 
 // --- Lógica del COORDINADOR (ADMIN) ---
@@ -110,29 +122,30 @@ void Coordinador::mostrarMenu() {
     do {
         limpiarPantalla();
         cout << "\n=== PANEL DE COORDINADOR ===\n";
-        cout << "1. Gestionar Asignaciones (Asignar Tutor)\n"; // <--- TU FUNCION
-        cout << "2. Ver Lista de Asignaciones\n";            // <--- TU OTRA FUNCION
-        cout << "3. Cerrar Sesión\n";
+        cout << "1. Gestionar Asignaciones\n";
+        cout << "2. Ver Lista de Asignaciones\n";
+        cout << "3. Ver Resultados de Encuestas\n"; // <--- AÑADE ESTO
+        cout << "4. Cerrar Sesión\n";
         cout << "Opción: ";
-        cin >> opcion;
+        
+        if (!(cin >> opcion)) { /* ... validación ... */ }
 
         if (opcion == 1) {
-            // === AQUÍ LLAMAMOS A LA ASIGNACIÓN ===
-            // Como tu función tiene cin/cout dentro, tomará el control de la consola
             RealizarAsignacion(db); 
-            
-            cout << "\nPresiona Enter para continuar.";
             limpiarBuffer(); cin.get();
         }
         else if (opcion == 2) {
-            // === AQUÍ LLAMAMOS A VER LISTA ===
             VerAsignaciones(db);
-            
+            limpiarBuffer(); cin.get();
+        }
+        else if (opcion == 3) {
+            // === CONECTA LA FUNCIÓN AQUÍ ===
+            VerResultadosEncuestas(db);
             cout << "\nPresiona Enter para continuar.";
             limpiarBuffer(); cin.get();
         }
 
-    } while(opcion != 3);
+    } while(opcion != 4);
 }
 
 // ==========================================
@@ -152,6 +165,8 @@ void inicializarDatosPrueba() {
                  "usuario TEXT UNIQUE, pass TEXT, rol TEXT);";
     char* err;
     sqlite3_exec(db, sql.c_str(), 0, 0, &err);
+
+    iniciarBaseDeDatos(db);
 }
 
 // ESTA ES LA FUNCIÓN CLAVE (FACTORY)

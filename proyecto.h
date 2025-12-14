@@ -68,34 +68,30 @@ public:
     void gestionarAsignaciones();
 };
 
-// --- TUS FUNCIONES GLOBALES ---
+
+
+// --- FUNCIONES GLOBALES ---
 void inicializarDatosPrueba();
 void registrarse();
 Usuario* iniciarSesion(); 
 
+// Funciones de Base de Datos (Solo una vez cada una)
+void iniciarBaseDeDatos(sqlite3 *db);
 
-//FUNCIONES PARA REGISTRAR CADA ACTA (CU-03)
-void RegistrarActa(sqlite3 *db, string tutor_usuario);
-
-
-
-// Funciones para la Asignación de Tutores (CU-04) 
-void iniciarBaseDeDatos(sqlite3 *db); // Abre la base de datos para guardar los datos que se inscriban en ella
-void RealizarAsignacion(sqlite3 *db); // Funcion que se va a usar para realizar la asgnación de tutores a los alumnos 
-void VerAsignaciones(sqlite3 *db); // Funcion que se va a usar para ver las asignaciones realizadas
-
-void MostrarTutorAsignado(sqlite3 *db, string alumno_usuario); // Funcion que muestra al alumno su tutor 
-void MostrarAlumnosAsignados(sqlite3 *db, string tutor_usuario); //Funcion que muestra al tutor los alumnos que le han asignado 
-
-
-
-//Funciones para la realización de la encuesta (CU-07)
-void iniciarBaseDeDatos(sqlite3 *db); 
+// Gestión de Asignaciones (Coordinador)
 void RealizarAsignacion(sqlite3 *db); 
 void VerAsignaciones(sqlite3 *db); 
-void Encuesta(sqlite3 *db, string alumno_usuario);
-void VerResultadosEncuestas(sqlite3 *db); // funcion para ver los resultados de las encuestas realizadas
 
+// Funciones de Alumno
+void Encuesta(sqlite3 *db, string alumno_usuario);
+void MostrarTutorAsignado(sqlite3 *db, string alumno_usuario); // <-- ESTA TE FALTA EN EL MENU ALUMNO
+
+// Funciones de Tutor
+void RegistrarActa(sqlite3 *db, string tutor_usuario);
+void MostrarAlumnosAsignados(sqlite3 *db, string tutor_usuario);
+
+// Resultados (Coordinador)
+void VerResultadosEncuestas(sqlite3 *db);
 
 //PRUEBAS CU-07 ( ENCUESTA)
 bool esPuntuacionValida(int puntuacion);
