@@ -97,4 +97,8 @@ void Encuesta(sqlite3 *db, string alumno_usuario);
 void VerResultadosEncuestas(sqlite3 *db); // funcion para ver los resultados de las encuestas realizadas
 
 
+//PRUEBAS CU-07 ( ENCUESTA)
+bool esPuntuacionValida(int puntuacion);
+bool esTextoValido(string texto);
+
 #endif

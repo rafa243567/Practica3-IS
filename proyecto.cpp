@@ -745,6 +745,21 @@ void VerResultadosEncuestas(sqlite3 *db) {
 }
 
 
+//PRUEBAS (CU-07) 
+
+bool esPuntuacionValida(int puntuacion) {
+    if (puntuacion >= 1 && puntuacion <= 5) return true;
+    return false;
+}
+
+bool esTextoValido(string texto) {
+    if (texto.empty()) return false;
+    if (texto.length() > 200) return false;
+    return true;
+}
+
+
+
 
 
     
