@@ -480,7 +480,38 @@ cout << "---- REGISTRO DE ACTA----" <<endl;
 
 
 
+// 1. Comprueba si un nombre existe en la tabla de usuarios
+bool existeUsuarioPorNombre(sqlite3* db, string nombre, string rol) {
+    sqlite3_stmt* stmt;
+    string sql = "SELECT count(*) FROM usuarios WHERE usuario = ? AND rol = ?;";
+    bool existe = false;
 
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, nombre.c_str(), -1, SQLITE_STATIC);
+        sqlite3_bind_text(stmt, 2, rol.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            if (sqlite3_column_int(stmt, 0) > 0) existe = true;
+        }
+    }
+    sqlite3_finalize(stmt);
+    return existe;
+}
+
+// 2. Comprueba si un alumno (por nombre) ya tiene tutor asignado
+bool yaTieneTutor(sqlite3* db, string nombreAlumno) {
+    sqlite3_stmt* stmt;
+    string sql = "SELECT count(*) FROM asignaciones WHERE nombre_alumno = ?;";
+    bool tiene = false;
+
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, nombreAlumno.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            if (sqlite3_column_int(stmt, 0) > 0) tiene = true;
+        }
+    }
+    sqlite3_finalize(stmt);
+    return tiene;
+}
 
 
 
@@ -488,142 +519,77 @@ cout << "---- REGISTRO DE ACTA----" <<endl;
 // CONSULTAS DE ASIGNACION CU-04)
 
 // CU-04: REALIZAR ASIGNACIÓN 
+// --- CU-04: REALIZAR ASIGNACIÓN (SOLO NOMBRES + CONTROL TOTAL) ---
 void RealizarAsignacion(sqlite3 *db) {
-    int id_tutor, id_alumno;
-    string nom_tutor, nom_alumno;
-    string opcion; 
+    string nom_alumno, nom_tutor, opcion;
     char *error = 0;
 
-    cout << "=== GESTIÓN DE ASIGNACIONES ===" << endl;
+    cout << "\n=== ASIGNAR TUTOR POR NOMBRE ===" << endl;
 
-    // --- PASO 1: PEDIR ALUMNO (CON VALIDACIÓN) ---
-    cout << ">> Introduce el ID del Alumno: "; 
-    // Protegemos si el usuario mete una letra en vez de número
-    if (!(cin >> id_alumno)) {
-        cout << " Error: Debes introducir un número ID válido." << endl;
-        cin.clear(); 
-        cin.ignore(10000, '\n'); 
-        return;
-    }
-    cin.ignore(); // Limpiar el Enter del buffer
+    // --- 1. PEDIR NOMBRE ALUMNO ---
+    cout << ">> Nombre del usuario Alumno: "; 
+    cin >> nom_alumno;
 
-    // Verificamos si existe en la base de datos antes de seguir
-    if (!verificarUsuario(db, id_alumno, "alumno")) {
-        cout << " Error: El usuario con ID " << id_alumno << " NO existe o no es un alumno." << endl;
+    // Verificamos si existe (usando el nombre)
+    if (!existeUsuarioPorNombre(db, nom_alumno, "alumno")) {
+        cout << "❌ Error: El alumno '" << nom_alumno << "' no existe." << endl;
         return; 
     }
 
-    // --- PASO 2: COMPROBAR SI YA TIENE TUTOR ---
-    bool esModificacion = false;
-    if (Asignado(db, id_alumno)) {
-        cout << " AVISO: Este alumno ya tiene tutor. ¿Deseas CAMBIARLO? (s/n): ";
+    // --- 2. TU CONTROL: ¿YA TIENE TUTOR? ---
+    // Aquí usamos la función que busca por nombre, no por ID
+    bool modificar = false;
+    if (yaTieneTutor(db, nom_alumno)) {
+        cout << "⚠️ AVISO: " << nom_alumno << " ya tiene un tutor asignado." << endl;
+        cout << "   ¿Quieres CAMBIARLO? (s/n): ";
         cin >> opcion;
-        cin.ignore();
-        if (opcion != "s" && opcion != "S") return; // Si dice que no, salimos
-        esModificacion = true;
+        if (opcion != "s" && opcion != "S") return; // Si dices que no, no hace nada
+        modificar = true;
     }
 
-    cout << ">> Confirma el Nombre del Alumno: "; 
-    getline(cin, nom_alumno);
+    // --- 3. PEDIR NOMBRE TUTOR ---
+    cout << ">> Nombre del usuario Tutor: "; 
+    cin >> nom_tutor;
 
-    // --- PASO 3: PEDIR TUTOR (CON VALIDACIÓN) ---
-    cout << ">> Introduce el ID del Tutor: "; 
-    if (!(cin >> id_tutor)) {
-        cout << "Error: ID inválido." << endl;
-        cin.clear(); cin.ignore(10000, '\n'); return;
-    }
-    cin.ignore();
-    
-    if (!verificarUsuario(db, id_tutor, "tutor")) {
-        cout << " Error: El usuario con ID " << id_tutor << " NO existe o no es un tutor." << endl;
+    // Verificamos si existe (usando el nombre)
+    if (!existeUsuarioPorNombre(db, nom_tutor, "tutor")) {
+        cout << "❌ Error: El tutor '" << nom_tutor << "' no existe." << endl;
         return;
     }
 
-    cout << ">> Confirma el Nombre del Tutor: "; 
-    getline(cin, nom_tutor);
-
-    // --- PASO 4: GUARDAR EN BDD ---
+    // --- 4. GUARDAR EN LA BASE DE DATOS ---
     string sql;
-    if (esModificacion) {
+    
+    // NOTA: Aunque tú no uses IDs, la base de datos necesita rellenar esa columna.
+    // Usamos este truco SQL: "(SELECT id FROM...)" para que la BD busque el número ella sola.
+    
+    if (modificar) {
         // ACTUALIZAR (UPDATE)
-        sql = "UPDATE asignaciones SET id_tutor = " + to_string(id_tutor) + 
-              ", nombre_tutor = '" + nom_tutor + "', nombre_alumno = '" + nom_alumno + 
-              "', fecha = CURRENT_TIMESTAMP WHERE id_alumno = " + to_string(id_alumno) + ";";
+        sql = "UPDATE asignaciones SET "
+              "nombre_tutor = '" + nom_tutor + "', "
+              "id_tutor = (SELECT id FROM usuarios WHERE usuario = '" + nom_tutor + "'), " // Truco SQL
+              "fecha = CURRENT_TIMESTAMP "
+              "WHERE nombre_alumno = '" + nom_alumno + "';";
     } else {
         // INSERTAR NUEVO (INSERT)
         sql = "INSERT INTO asignaciones (id_tutor, id_alumno, nombre_tutor, nombre_alumno) VALUES (" 
-              + to_string(id_tutor) + ", " + to_string(id_alumno) + ", '" 
-              + nom_tutor + "', '" + nom_alumno + "');";
+              "(SELECT id FROM usuarios WHERE usuario = '" + nom_tutor + "'), "  // Truco SQL
+              "(SELECT id FROM usuarios WHERE usuario = '" + nom_alumno + "'), " // Truco SQL
+              "'" + nom_tutor + "', '" + nom_alumno + "');";
     }
 
     int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &error);
     
     if (rc != SQLITE_OK) {
-        cout << " ERROR SQL: " << error << endl;
+        cout << "❌ Error SQL: " << error << endl;
         sqlite3_free(error);
     } else {
-        cout << "Asignación realizada correctamente." << endl;
-        cout << "   (Se han actualizado los registros del sistema)" << endl;
+        cout << "✅ ¡Asignación guardada con éxito!" << endl;
+        cout << "   Tutor: " << nom_tutor << "  --->  Alumno: " << nom_alumno << endl;
     }
 }
-void VerAsignaciones(sqlite3 *db) {
-    char *error = 0;
-
-    cout << "--- LISTA DE ASIGNACIONES DE TUTORES ---" << endl;
-    string sql = "SELECT id_tutor, id_alumno, nombre_tutor, nombre_alumno, fecha FROM asignaciones;";
-    int rc = sqlite3_exec(db, sql.c_str(), MostrarDatos, 0, &error);
-    
-    if (rc != SQLITE_OK) {
-        cout << " Error al leer la lista: " << error << endl;
-        sqlite3_free(error);
-    }
-    cout << "---------------------------------------" << endl;
-}
 
 
-// FUNCION PARA QUE EL ALUMNO PUEDA VER SU TUTOR ASIGNADO 
-void MostrarTutorAsignado(sqlite3 *db, string alumno_usuario){
-    sqlite3_stmt* stmt;
-    int id_alumno = -1;
-    string nombre_tutor = ""; // Inicializar estas variables para poder comprobar fallos mas rapido 
-    bool tiene_tutor = false;
-
-    cout << " --- TUTOR ASIGNADO --- " << endl;
-
-    //Obtener el ID del alumno a traves del nombre registrado
-    string sql_id = "SELECT id FROM usuarios WHERE usuario = ?;";
-    
-    if (sqlite3_prepare_v2(db, sql_id.c_str(), -1, &stmt, 0) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, alumno_usuario.c_str(), -1, SQLITE_STATIC);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            id_alumno = sqlite3_column_int(stmt, 0);
-        }
-    }
-    sqlite3_finalize(stmt);  // Limpiar el buffer para que no se queden datos mezclados 
-    if (id_alumno == -1) {
-        cout << " ERROR, El alumno no ha sido encontrado." << endl;
-        return;
-    }
-
-    //  Buscar en la tabla el tutor asignado a ese nombre 
-    string sql_asig = "SELECT nombre_tutor FROM asignaciones WHERE id_alumno = ?;";
-    
-    if (sqlite3_prepare_v2(db, sql_asig.c_str(), -1, &stmt, 0) == SQLITE_OK) {
-        sqlite3_bind_int(stmt, 1, id_alumno);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            const unsigned char* texto = sqlite3_column_text(stmt, 0);
-            nombre_tutor = string(reinterpret_cast<const char*>(texto));
-            tiene_tutor = true;
-        }
-    }
-    sqlite3_finalize(stmt);
-
-    if (tiene_tutor) {
-        cout << " Tu tutor asignado es: " << nombre_tutor << endl;
-    } else {
-        cout << " Aun no tienes un tutor asignado, pronto se te asignará uno ." << endl;
-    }
-}
 
 // FUNCION PARA QUE EL TUTOR PUEDA VER SUS ALUMNOS ASIGNADOS
 void MostrarAlumnosAsignados(sqlite3 *db, string tutor_usuario){
