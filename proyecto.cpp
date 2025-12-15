@@ -232,29 +232,32 @@ Usuario* iniciarSesion() {
 }
 
 void registrarse() {
-    cout << "\n--- REGISTRO DE NUEVO ALUMNO ---\n";
     string u, p;
+    cout << "\n--- REGISTRO DE NUEVO ALUMNO ---\n";
     cout << "Usuario: "; cin >> u;
     cout << "Contraseña: "; cin >> p;
 
-    string rol = "alumno"; 
-    string sql = "INSERT INTO usuarios (usuario, pass, rol) VALUES (?, ?, ?);";
+    // Fíjate: NO insertamos el ID. La base de datos lo pone sola (1, 2, 3...)
+    string sql = "INSERT INTO usuarios (usuario, pass, rol) VALUES (?, ?, 'alumno');";
     sqlite3_stmt* stmt;
     
     if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, u.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 2, p.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 3, rol.c_str(), -1, SQLITE_STATIC);
 
         if (sqlite3_step(stmt) == SQLITE_DONE) {
-            cout << "¡Registro exitoso! Por favor inicia sesión en el menú principal.\n";
+            // RECUPERAMOS EL ID QUE SE ACABA DE CREAR
+            int id_generado = sqlite3_last_insert_rowid(db);
+            
+            cout << "✅ ¡Registrado con éxito!" << endl;
+            cout << "ℹ️ IMPORTANTE: Tu ID de usuario es el: [ " << id_generado << " ]" << endl;
+            cout << "Guarda este número, lo necesitarás para gestiones." << endl;
         } else {
-            cout << "Error: El usuario ya existe.\n";
+            cout << "❌ Error: El usuario ya existe." << endl;
         }
     }
     sqlite3_finalize(stmt);
 }
-
 
 
 
@@ -274,9 +277,21 @@ int MostrarDatos (void *NotUsed, int argc, char **argv, char **azColName){
 
 void iniciarBaseDeDatos(sqlite3 *db) {
     char *error = 0;
-    char *mensajeError = 0; 
 
-    //crea uan tabla en la base de datos coon todos los apartados necesarios para la asignaicon de tutores
+    // 1. TABLA USUARIOS (¡ESTA FALTABA! ES LA MÁS IMPORTANTE PARA LOS IDs)
+    string sql_usuarios = "CREATE TABLE IF NOT EXISTS usuarios ("
+                          "id INTEGER PRIMARY KEY AUTOINCREMENT, " // <--- ESTO GENERA EL 1, 2, 3... AUTOMÁTICO
+                          "usuario TEXT UNIQUE, "
+                          "pass TEXT, "
+                          "rol TEXT);";
+    
+    int resultado = sqlite3_exec(db, sql_usuarios.c_str(), 0, 0, &error);
+    if (resultado != SQLITE_OK) {
+        cout << "Error creando tabla usuarios: " << error << endl;
+        sqlite3_free(error);
+    }
+
+    // 2. TABLA ASIGNACIONES
     string sql_asignacion = "CREATE TABLE IF NOT EXISTS asignaciones ("
                       "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                       "id_tutor INTEGER, "
@@ -285,28 +300,28 @@ void iniciarBaseDeDatos(sqlite3 *db) {
                       "nombre_alumno TEXT, " 
                       "fecha TEXT DEFAULT CURRENT_TIMESTAMP);";
 
-   int resultado = sqlite3_exec(db, sql_asignacion.c_str(), 0, 0, &error);
+    resultado = sqlite3_exec(db, sql_asignacion.c_str(), 0, 0, &error);
     if (resultado != SQLITE_OK) {
         cout << "Error tabla asignaciones: " << error << endl;
         sqlite3_free(error);
     }
 
-        string sql_encuesta = "CREATE TABLE IF NOT EXISTS encuestas ("
-                          "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                          "id_tutor INTEGER, "     // Id del tutor que ha sido evaluado 
-                          "id_alumno INTEGER, "    // Id del alumno que realiza la encuesta
-                          "puntuacion INTEGER, "   // Valoracion (1 al 5)
-                          "comentario TEXT, "      // Comentario adicional
-                          "fecha TEXT DEFAULT CURRENT_TIMESTAMP);";
+    // 3. TABLA ENCUESTAS
+    string sql_encuesta = "CREATE TABLE IF NOT EXISTS encuestas ("
+                      "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                      "id_tutor INTEGER, "     
+                      "id_alumno INTEGER, "    
+                      "puntuacion INTEGER, "   
+                      "comentario TEXT, "      
+                      "fecha TEXT DEFAULT CURRENT_TIMESTAMP);";
 
-        
-        resultado = sqlite3_exec(db, sql_encuesta.c_str(), 0, 0, &error);
+    resultado = sqlite3_exec(db, sql_encuesta.c_str(), 0, 0, &error);
     if (resultado != SQLITE_OK) {
         cout << "Error tabla encuestas: " << error << endl;
         sqlite3_free(error);
     }
 
-    //Crear la tabla para registrar el acta
+    // 4. TABLA ACTAS
     string sql_actas = "CREATE TABLE IF NOT EXISTS actas ("
                        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                        "id_tutor INTEGER, "
@@ -314,14 +329,18 @@ void iniciarBaseDeDatos(sqlite3 *db) {
                        "fecha TEXT, "
                        "resumen TEXT);";
 
-    sqlite3_exec(db, sql_actas.c_str(), 0, 0, &mensajeError);
+    resultado = sqlite3_exec(db, sql_actas.c_str(), 0, 0, &error);
+    if (resultado != SQLITE_OK) {
+        cout << "Error tabla actas: " << error << endl;
+        sqlite3_free(error);
+    }
 
-    // NUEVA TABLA: ALERTA DE INCIDENCIAS (CU-04)
+    // 5. TABLA ALERTAS
     string sql_alertas = "CREATE TABLE IF NOT EXISTS alertas ("
                          "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                          "emisor_usuario TEXT, "
-                         "categoria TEXT, "       // Salud, Convivencia, Academico
-                         "descripcion TEXT, "     // Descripción opcional
+                         "categoria TEXT, "
+                         "descripcion TEXT, "
                          "fecha TEXT DEFAULT CURRENT_TIMESTAMP, "
                          "estado TEXT DEFAULT 'ABIERTA');";
     
@@ -330,25 +349,16 @@ void iniciarBaseDeDatos(sqlite3 *db) {
         cout << "Error tabla alertas: " << error << endl;
         sqlite3_free(error);
     }
-    
-    // NUEVA TABLA: CHAT / MENSAJES (CU-02)
-    // Nota: Simplificamos el chat a un registro de mensajes bidireccionales
+
+    // 6. TABLA MENSAJES (CHAT) - Por si acaso la necesitas
     string sql_chat = "CREATE TABLE IF NOT EXISTS mensajes ("
                       "id INTEGER PRIMARY KEY AUTOINCREMENT, "
                       "remitente TEXT, " 
                       "receptor TEXT, " 
                       "contenido TEXT, " 
-                      "fecha TEXT DEFAULT CURRENT_TIMESTAMP, "
-                      "archivo_adjunto TEXT DEFAULT '',"
-                      "es_alerta INTEGER DEFAULT 0);"; // 0 o 1
-    
-    resultado = sqlite3_exec(db, sql_chat.c_str(), 0, 0, &error);
-    if (resultado != SQLITE_OK) {
-        cout << "Error tabla mensajes: " << error << endl;
-        sqlite3_free(error);
-    }
+                      "fecha TEXT DEFAULT CURRENT_TIMESTAMP);";
+    sqlite3_exec(db, sql_chat.c_str(), 0, 0, &error);
 }
-
 
 
 bool verificarUsuario (sqlite3* db, int id, string rolEsperado) {
@@ -480,116 +490,134 @@ cout << "---- REGISTRO DE ACTA----" <<endl;
 
 
 
-// 1. Comprueba si un nombre existe en la tabla de usuarios
-bool existeUsuarioPorNombre(sqlite3* db, string nombre, string rol) {
-    sqlite3_stmt* stmt;
-    string sql = "SELECT count(*) FROM usuarios WHERE usuario = ? AND rol = ?;";
-    bool existe = false;
 
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, nombre.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_text(stmt, 2, rol.c_str(), -1, SQLITE_STATIC);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            if (sqlite3_column_int(stmt, 0) > 0) existe = true;
-        }
-    }
-    sqlite3_finalize(stmt);
-    return existe;
-}
-
-// 2. Comprueba si un alumno (por nombre) ya tiene tutor asignado
-bool yaTieneTutor(sqlite3* db, string nombreAlumno) {
-    sqlite3_stmt* stmt;
-    string sql = "SELECT count(*) FROM asignaciones WHERE nombre_alumno = ?;";
-    bool tiene = false;
-
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) == SQLITE_OK) {
-        sqlite3_bind_text(stmt, 1, nombreAlumno.c_str(), -1, SQLITE_STATIC);
-        if (sqlite3_step(stmt) == SQLITE_ROW) {
-            if (sqlite3_column_int(stmt, 0) > 0) tiene = true;
-        }
-    }
-    sqlite3_finalize(stmt);
-    return tiene;
-}
 
 
 
 // función para introducir los datos y la asignación de tutor y alumno 
 // CONSULTAS DE ASIGNACION CU-04)
 
-// CU-04: REALIZAR ASIGNACIÓN 
-// --- CU-04: REALIZAR ASIGNACIÓN (SOLO NOMBRES + CONTROL TOTAL) ---
+
 void RealizarAsignacion(sqlite3 *db) {
-    string nom_alumno, nom_tutor, opcion;
+    int id_tutor, id_alumno;
+    string nom_tutor, nom_alumno;
+    string opcion; 
     char *error = 0;
 
-    cout << "\n=== ASIGNAR TUTOR POR NOMBRE ===" << endl;
-
-    // --- 1. PEDIR NOMBRE ALUMNO ---
-    cout << ">> Nombre del usuario Alumno: "; 
-    cin >> nom_alumno;
-
-    // Verificamos si existe (usando el nombre)
-    if (!existeUsuarioPorNombre(db, nom_alumno, "alumno")) {
-        cout << "❌ Error: El alumno '" << nom_alumno << "' no existe." << endl;
+    // comprobar que el alumno se encuentra en la Base de datos 
+    cout << ">> Introduce el ID del Alumno: "; 
+    cin >> id_alumno;
+    cin.ignore();
+    if (!verificarUsuario(db, id_alumno, "alumno")) {
+        cout << " Error: El alumno con ID " << id_alumno << " no esta registrado en la base de datos." << endl;
         return; 
     }
 
-    // --- 2. TU CONTROL: ¿YA TIENE TUTOR? ---
-    // Aquí usamos la función que busca por nombre, no por ID
-    bool modificar = false;
-    if (yaTieneTutor(db, nom_alumno)) {
-        cout << "⚠️ AVISO: " << nom_alumno << " ya tiene un tutor asignado." << endl;
-        cout << "   ¿Quieres CAMBIARLO? (s/n): ";
+    // FUncion que verifica si el alumno ya le ha sido asignado un tutor 
+    bool esModificacion = false;
+    if (Asignado(db, id_alumno)) {
+        cout << " Este alumno ya tiene  un tutor. ¿Deseas CAMBIARLO? (s/n): ";
         cin >> opcion;
-        if (opcion != "s" && opcion != "S") return; // Si dices que no, no hace nada
-        modificar = true;
+        cin.ignore();
+        if (opcion != "s" && opcion != "S") return; // Si dice que no, salimos
+        esModificacion = true; // SI dice S, se procede a modgicar y actualizar el cambio 
     }
+    cout << ">> Nombre del Alumno (para confirmar): "; 
+    getline(cin, nom_alumno);
 
-    // --- 3. PEDIR NOMBRE TUTOR ---
-    cout << ">> Nombre del usuario Tutor: "; 
-    cin >> nom_tutor;
-
-    // Verificamos si existe (usando el nombre)
-    if (!existeUsuarioPorNombre(db, nom_tutor, "tutor")) {
-        cout << "❌ Error: El tutor '" << nom_tutor << "' no existe." << endl;
+    // comprueba que el tutor esta registrado en la Base de datos 
+    cout << ">> Introduce el ID del Tutor: "; 
+    cin >> id_tutor;
+    cin.ignore();
+    
+    if (!verificarUsuario(db, id_tutor, "tutor")) {
+        cout << " Error: El tutor con ID " << id_tutor << " no existe." << endl;
         return;
     }
 
-    // --- 4. GUARDAR EN LA BASE DE DATOS ---
+    cout << ">> Nombre del Tutor: "; 
+    getline(cin, nom_tutor);
     string sql;
-    
-    // NOTA: Aunque tú no uses IDs, la base de datos necesita rellenar esa columna.
-    // Usamos este truco SQL: "(SELECT id FROM...)" para que la BD busque el número ella sola.
-    
-    if (modificar) {
-        // ACTUALIZAR (UPDATE)
-        sql = "UPDATE asignaciones SET "
-              "nombre_tutor = '" + nom_tutor + "', "
-              "id_tutor = (SELECT id FROM usuarios WHERE usuario = '" + nom_tutor + "'), " // Truco SQL
-              "fecha = CURRENT_TIMESTAMP "
-              "WHERE nombre_alumno = '" + nom_alumno + "';";
+    if (esModificacion) {
+        sql = "UPDATE asignaciones SET id_tutor = " + to_string(id_tutor) + 
+              ", nombre_tutor = '" + nom_tutor + "', nombre_alumno = '" + nom_alumno + 
+              "', fecha = CURRENT_TIMESTAMP WHERE id_alumno = " + to_string(id_alumno) + ";";
     } else {
-        // INSERTAR NUEVO (INSERT)
         sql = "INSERT INTO asignaciones (id_tutor, id_alumno, nombre_tutor, nombre_alumno) VALUES (" 
-              "(SELECT id FROM usuarios WHERE usuario = '" + nom_tutor + "'), "  // Truco SQL
-              "(SELECT id FROM usuarios WHERE usuario = '" + nom_alumno + "'), " // Truco SQL
-              "'" + nom_tutor + "', '" + nom_alumno + "');";
+              + to_string(id_tutor) + ", " + to_string(id_alumno) + ", '" 
+              + nom_tutor + "', '" + nom_alumno + "');";
     }
 
     int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &error);
     
     if (rc != SQLITE_OK) {
-        cout << "❌ Error SQL: " << error << endl;
+        cout << "ERROR : " << error << endl;
         sqlite3_free(error);
     } else {
-        cout << "✅ ¡Asignación guardada con éxito!" << endl;
-        cout << "   Tutor: " << nom_tutor << "  --->  Alumno: " << nom_alumno << endl;
+        cout << " Asignación de tutor realizada correctamente." << endl;
+        cout << "  Enviando correo al alumno " << nom_alumno << "..." << endl;
+        cout << "  Enviando correo al tutor " << nom_tutor << "..." << endl;
     }
 }
 
+void VerAsignaciones(sqlite3 *db) {
+    char *error = 0;
 
+    cout << "--- LISTA DE ASIGNACIONES DE TUTORES ---" << endl;
+    string sql = "SELECT id_tutor, id_alumno, nombre_tutor, nombre_alumno, fecha FROM asignaciones;";
+    int rc = sqlite3_exec(db, sql.c_str(), MostrarDatos, 0, &error);
+    
+    if (rc != SQLITE_OK) {
+        cout << " Error al leer la lista: " << error << endl;
+        sqlite3_free(error);
+    }
+    cout << "---------------------------------------" << endl;
+}
+
+
+// FUNCION PARA QUE EL ALUMNO PUEDA VER SU TUTOR ASIGNADO 
+void MostrarTutorAsignado(sqlite3 *db, string alumno_usuario){
+    sqlite3_stmt* stmt;
+    int id_alumno = -1;
+    string nombre_tutor = ""; // Inicializar estas variables para poder comprobar fallos mas rapido 
+    bool tiene_tutor = false;
+
+    cout << " --- TUTOR ASIGNADO --- " << endl;
+
+    //Obtener el ID del alumno a traves del nombre registrado
+    string sql_id = "SELECT id FROM usuarios WHERE usuario = ?;";
+    
+    if (sqlite3_prepare_v2(db, sql_id.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, alumno_usuario.c_str(), -1, SQLITE_STATIC);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            id_alumno = sqlite3_column_int(stmt, 0);
+        }
+    }
+    sqlite3_finalize(stmt);  // Limpiar el buffer para que no se queden datos mezclados 
+    if (id_alumno == -1) {
+        cout << " ERROR, El alumno no ha sido encontrado." << endl;
+        return;
+    }
+
+    //  Buscar en la tabla el tutor asignado a ese nombre 
+    string sql_asig = "SELECT nombre_tutor FROM asignaciones WHERE id_alumno = ?;";
+    
+    if (sqlite3_prepare_v2(db, sql_asig.c_str(), -1, &stmt, 0) == SQLITE_OK) {
+        sqlite3_bind_int(stmt, 1, id_alumno);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            const unsigned char* texto = sqlite3_column_text(stmt, 0);
+            nombre_tutor = string(reinterpret_cast<const char*>(texto));
+            tiene_tutor = true;
+        }
+    }
+    sqlite3_finalize(stmt);
+
+    if (tiene_tutor) {
+        cout << " Tu tutor asignado es: " << nombre_tutor << endl;
+    } else {
+        cout << " Aun no tienes un tutor asignado, pronto se te asignará uno ." << endl;
+    }
+}
 
 // FUNCION PARA QUE EL TUTOR PUEDA VER SUS ALUMNOS ASIGNADOS
 void MostrarAlumnosAsignados(sqlite3 *db, string tutor_usuario){
