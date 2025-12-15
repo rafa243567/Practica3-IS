@@ -487,52 +487,70 @@ cout << "---- REGISTRO DE ACTA----" <<endl;
 // función para introducir los datos y la asignación de tutor y alumno 
 // CONSULTAS DE ASIGNACION CU-04)
 
-
+// CU-04: REALIZAR ASIGNACIÓN 
 void RealizarAsignacion(sqlite3 *db) {
     int id_tutor, id_alumno;
     string nom_tutor, nom_alumno;
     string opcion; 
     char *error = 0;
 
-    // comprobar que el alumno se encuentra en la Base de datos 
+    cout << "=== GESTIÓN DE ASIGNACIONES ===" << endl;
+
+    // --- PASO 1: PEDIR ALUMNO (CON VALIDACIÓN) ---
     cout << ">> Introduce el ID del Alumno: "; 
-    cin >> id_alumno;
-    cin.ignore();
+    // Protegemos si el usuario mete una letra en vez de número
+    if (!(cin >> id_alumno)) {
+        cout << " Error: Debes introducir un número ID válido." << endl;
+        cin.clear(); 
+        cin.ignore(10000, '\n'); 
+        return;
+    }
+    cin.ignore(); // Limpiar el Enter del buffer
+
+    // Verificamos si existe en la base de datos antes de seguir
     if (!verificarUsuario(db, id_alumno, "alumno")) {
-        cout << " Error: El alumno con ID " << id_alumno << " no esta registrado en la base de datos." << endl;
+        cout << " Error: El usuario con ID " << id_alumno << " NO existe o no es un alumno." << endl;
         return; 
     }
 
-    // FUncion que verifica si el alumno ya le ha sido asignado un tutor 
+    // --- PASO 2: COMPROBAR SI YA TIENE TUTOR ---
     bool esModificacion = false;
     if (Asignado(db, id_alumno)) {
-        cout << " Este alumno ya tiene  un tutor. ¿Deseas CAMBIARLO? (s/n): ";
+        cout << " AVISO: Este alumno ya tiene tutor. ¿Deseas CAMBIARLO? (s/n): ";
         cin >> opcion;
         cin.ignore();
         if (opcion != "s" && opcion != "S") return; // Si dice que no, salimos
-        esModificacion = true; // SI dice S, se procede a modgicar y actualizar el cambio 
+        esModificacion = true;
     }
-    cout << ">> Nombre del Alumno (para confirmar): "; 
+
+    cout << ">> Confirma el Nombre del Alumno: "; 
     getline(cin, nom_alumno);
 
-    // comprueba que el tutor esta registrado en la Base de datos 
+    // --- PASO 3: PEDIR TUTOR (CON VALIDACIÓN) ---
     cout << ">> Introduce el ID del Tutor: "; 
-    cin >> id_tutor;
+    if (!(cin >> id_tutor)) {
+        cout << "Error: ID inválido." << endl;
+        cin.clear(); cin.ignore(10000, '\n'); return;
+    }
     cin.ignore();
     
     if (!verificarUsuario(db, id_tutor, "tutor")) {
-        cout << " Error: El tutor con ID " << id_tutor << " no existe." << endl;
+        cout << " Error: El usuario con ID " << id_tutor << " NO existe o no es un tutor." << endl;
         return;
     }
 
-    cout << ">> Nombre del Tutor: "; 
+    cout << ">> Confirma el Nombre del Tutor: "; 
     getline(cin, nom_tutor);
+
+    // --- PASO 4: GUARDAR EN BDD ---
     string sql;
     if (esModificacion) {
+        // ACTUALIZAR (UPDATE)
         sql = "UPDATE asignaciones SET id_tutor = " + to_string(id_tutor) + 
               ", nombre_tutor = '" + nom_tutor + "', nombre_alumno = '" + nom_alumno + 
               "', fecha = CURRENT_TIMESTAMP WHERE id_alumno = " + to_string(id_alumno) + ";";
     } else {
+        // INSERTAR NUEVO (INSERT)
         sql = "INSERT INTO asignaciones (id_tutor, id_alumno, nombre_tutor, nombre_alumno) VALUES (" 
               + to_string(id_tutor) + ", " + to_string(id_alumno) + ", '" 
               + nom_tutor + "', '" + nom_alumno + "');";
@@ -541,15 +559,13 @@ void RealizarAsignacion(sqlite3 *db) {
     int rc = sqlite3_exec(db, sql.c_str(), 0, 0, &error);
     
     if (rc != SQLITE_OK) {
-        cout << "ERROR : " << error << endl;
+        cout << " ERROR SQL: " << error << endl;
         sqlite3_free(error);
     } else {
-        cout << " Asignación de tutor realizada correctamente." << endl;
-        cout << "  Enviando correo al alumno " << nom_alumno << "..." << endl;
-        cout << "  Enviando correo al tutor " << nom_tutor << "..." << endl;
+        cout << "Asignación realizada correctamente." << endl;
+        cout << "   (Se han actualizado los registros del sistema)" << endl;
     }
 }
-
 void VerAsignaciones(sqlite3 *db) {
     char *error = 0;
 
