@@ -74,7 +74,11 @@ void Alumno::mostrarMenu() {
         } 
         else if (opcion == 4) {
             GenerarAlertaIncidencia(db, usuario);
-            limpiarBuffer(); cin.get();
+            
+            // Añadimos una pausa explícita para que el usuario vea el mensaje de éxito
+            cout << "\nPresiona Enter para volver al menú...";
+            limpiarBuffer(); // Limpia posibles restos del cin >> cat_int
+            cin.get();       // Espera a que el usuario pulse Enter
         }
 
     } while(opcion != 5);
@@ -88,6 +92,21 @@ void Alumno::generarAlerta() {
 
 // --- TUTOR ---
 // --- TUTOR (CORREGIDO) ---
+// Nueva función lógica que sí podemos probar automáticamente
+bool RegistrarAlertaEnBD(sqlite3* db, string emisor, string cat_str, string descripcion) {
+    sqlite3_stmt* stmt;
+    string sql = "INSERT INTO alertas (emisor_usuario, categoria, descripcion) VALUES (?, ?, ?);";
+    
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, 0) != SQLITE_OK) return false;
+
+    sqlite3_bind_text(stmt, 1, emisor.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, cat_str.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, descripcion.c_str(), -1, SQLITE_STATIC);
+
+    int rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return (rc == SQLITE_DONE);
+}
 void Tutor::mostrarMenu() {
     int opcion;
     do {
@@ -961,34 +980,35 @@ string CategoriaAlertaToString(CategoriaAlerta cat) {
     }
     return "Desconocido";
 }
-
 void GenerarAlertaIncidencia(sqlite3* db, string emisor_usuario) {
     int cat_int;
     string descripcion;
     sqlite3_stmt* stmt;
 
-    cout << "\n--- GENERAR ALERTA URGENTE ---" << endl;
-    cout << "Categorías disponibles:" << endl;
-    cout << " 1. Salud" << endl;
-    cout << " 2. Convivencia" << endl;
-    cout << " 3. Académico" << endl;
+    cout << "\n--- GENERAR ALERTA DE INCIDENCIA ---" << endl;
+    cout << "1. Salud" << endl;
+    cout << "2. Convivencia" << endl;
+    cout << "3. Académico" << endl;
     cout << "Seleccione la categoría (1-3): ";
 
     if (!(cin >> cat_int) || cat_int < 1 || cat_int > 3) {
         cout << "Error: Categoría no válida." << endl;
-        limpiarBuffer();
+        limpiarBuffer(); // Limpia el error para que el menú principal funcione
         return;
     }
-    cin.ignore();
-    
+
+    // --- CAMBIO CLAVE 1 ---
+    // Limpiamos el salto de línea que dejó el 'cin >> cat_int' 
+    // para que el siguiente 'getline' no se lo salte.
+    cin.ignore(numeric_limits<streamsize>::max(), '\n');
+
     CategoriaAlerta categoria = static_cast<CategoriaAlerta>(cat_int);
     string cat_str = CategoriaAlertaToString(categoria);
 
     cout << "Escriba una descripción detallada (opcional): ";
     getline(cin, descripcion);
 
-    // 5. El sistema registra la alerta con fecha y emisor (RI-5)
-    string sql_guardar = "INSERT INTO alertas (emisor_usuario, categoria, descripcion) VALUES (?, ?, ?);";
+    string sql_guardar = "INSERT INTO alertas (emisor_usuario, categoria, descripcion, estado) VALUES (?, ?, ?, 'ABIERTA');";
     
     if (sqlite3_prepare_v2(db, sql_guardar.c_str(), -1, &stmt, 0) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, emisor_usuario.c_str(), -1, SQLITE_STATIC);
@@ -996,14 +1016,17 @@ void GenerarAlertaIncidencia(sqlite3* db, string emisor_usuario) {
         sqlite3_bind_text(stmt, 3, descripcion.c_str(), -1, SQLITE_STATIC);
 
         if (sqlite3_step(stmt) == SQLITE_DONE) {
-            // 6. El sistema notifica inmediatamente al coordinador (simulación)
             cout << "\n🚨 ALERTA URGENTE ENVIADA." << endl;
             cout << "La incidencia de categoría '" << cat_str << "' ha sido notificada al Coordinador." << endl;
         } else {
-            cout << "Error al registrar la alerta: " << sqlite3_errmsg(db) << endl;
+            cout << "Error al registrar la alerta en la base de datos." << endl;
         }
-    } else {
-        cout << "Error SQL al preparar la alerta." << endl;
     }
     sqlite3_finalize(stmt);
+
+    // --- CAMBIO CLAVE 2 ---
+    // Pausamos el programa para que el usuario pueda leer el mensaje 
+    // de éxito antes de que 'limpiarPantalla()' borre todo al volver al menú.
+    cout << "\nPresiona Enter para volver al menú...";
+    cin.get(); 
 }

@@ -1,0 +1,1 @@
+/usr/bin/c++ CMakeFiles/ejecutar_tests.dir/test_alertas.cpp.o CMakeFiles/ejecutar_tests.dir/proyecto.cpp.o -o ejecutar_tests  /usr/lib/x86_64-linux-gnu/libgtest.a -lsqlite3 -lpthread 
