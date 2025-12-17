@@ -1,3 +1,0 @@
-/home/miguel-cruz-guerrero/Practica3-IS/build/CMakeFiles/ejecutar_tests.dir
-/home/miguel-cruz-guerrero/Practica3-IS/build/CMakeFiles/edit_cache.dir
-/home/miguel-cruz-guerrero/Practica3-IS/build/CMakeFiles/rebuild_cache.dir
