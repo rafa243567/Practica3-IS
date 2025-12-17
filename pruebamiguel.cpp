@@ -2,6 +2,9 @@
 #include "proyecto.h"
 #include <sqlite3.h>
 
+// Declaración de la función si no está en proyecto.h
+bool RegistrarAlertaEnBD(sqlite3* db, const std::string& usuario, const std::string& categoria, const std::string& desc);
+
 // Fixture para preparar el entorno de base de datos antes de cada test
 class AlertaTest : public ::testing::Test {
 protected:

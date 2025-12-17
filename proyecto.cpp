@@ -104,6 +104,9 @@ bool RegistrarAlertaEnBD(sqlite3* db, string emisor, string cat_str, string desc
     sqlite3_bind_text(stmt, 3, descripcion.c_str(), -1, SQLITE_STATIC);
 
     int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        cerr << "Error SQL: " << sqlite3_errmsg(db) << endl;
+    }
     sqlite3_finalize(stmt);
     return (rc == SQLITE_DONE);
 }
