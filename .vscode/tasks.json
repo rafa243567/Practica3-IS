@@ -1,9 +1,21 @@
 {
+    "label": "C/C++: g++ compilar proyecto",
+    "type": "cppbuild",
+    "command": "/usr/bin/g++",
+    "args": [
+        "-g",
+        "${workspaceFolder}/*.cc",
+        "${workspaceFolder}/*.cpp",
+        "-o",
+        "${fileDirname}/edu_connect",
+        "-lsqlite3"
+    ],
+    "group": "build",
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: gcc build active file",
-            "command": "/usr/bin/gcc",
+            "label": "C/C++: g++ build active file",
+            "command": "/usr/bin/g++",
             "args": [
                 "-fdiagnostics-color=always",
                 "-g",
