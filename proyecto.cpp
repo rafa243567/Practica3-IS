@@ -544,16 +544,3 @@ void MostrarAlertasParaTutor(sqlite3* db, string tutor_usuario) {
 
 bool esPuntuacionValida(int p) { return p >= 1 && p <= 5; }
 bool esTextoValido(string t) { return !t.empty() && t.length() <= 200; }
-
-
-
-// ====<PRUEBAS>======================================
-// Si lees esto es que te funciona correctamente
-// ====<PRUEBAS>======================================
-// Si lees esto es que te funciona correctamente
-// ==========================================
-// sino pelas
-// 1. Prueba de envío de mensajes
-// 2. Prueba de visualización de historial de chat
-// 3. Prueba de generación de alertas
-// 4. Prueba de visualización de alertas para tutor
