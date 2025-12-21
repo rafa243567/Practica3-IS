@@ -1,5 +1,11 @@
-# Práctica 3: Taller de Git y GitHub
-**Mi primera confirmación (commit)**.
+# Proyecto Ingienería del software
+Documentos necesarios para el uso del programa:
+-Main.cc
+-Proyecto.cpp
+-Proyecto.h
+-Tutoria_app.db
+
+**Mi primera confirmación**.
 
 Comandos necesarios a la hora de trabajar:
 
